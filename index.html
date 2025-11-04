@@ -329,27 +329,38 @@
             }
         }
 
-        // Obtener el santo del día desde calendariodesantos.com mediante web scraping
+        // Obtener el santo del día desde múltiples fuentes
         async function getSaintOfTheDay() {
             try {
                 const month = selectedDate.getMonth() + 1;
                 const day = selectedDate.getDate();
                 
-                // Intentar primero con la API de santos católicos
+                // Intentar primero con la API católica española
                 try {
-                    const response = await fetch(`https://api.religion.ar/api/santos/${month}/${day}`);
+                    const response = await fetch(`https://es.catholic.net/santoral/articulo.php?mes=${month}&dia=${day}`);
+                    if (response.ok) {
+                        // Si funciona, parsearlo (esto requeriría un backend)
+                        console.log('Catholic.net disponible');
+                    }
+                } catch (e) {
+                    console.log('Catholic.net no disponible');
+                }
+                
+                // Intentar con API alternativa
+                try {
+                    const response = await fetch(`https://api.abarim-publications.com/santo/${month}/${day}`);
                     if (response.ok) {
                         const data = await response.json();
-                        if (data && data.data && data.data.length > 0) {
-                            displayMultipleSaints(data.data);
+                        if (data && data.saints) {
+                            displayMultipleSaints(data.saints);
                             return;
                         }
                     }
                 } catch (e) {
-                    console.log('API no disponible, usando método alternativo');
+                    console.log('API alternativa no disponible');
                 }
                 
-                // Si la API falla, usar el calendario predefinido o Wikipedia
+                // Usar el calendario predefinido extenso como respaldo
                 await getSaintFromCalendar();
             } catch (error) {
                 console.error('Error:', error);
