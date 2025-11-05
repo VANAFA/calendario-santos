@@ -1,15 +1,75 @@
-# Santo del Día - Calendario de Santos
+# 🕊️ Calendario de Santos
 
-Una página web que muestra el santo del día con información actualizada de Wikipedia.
+Página web en español que muestra el santo del día con información detallada, imágenes y enlaces a recursos.
 
-## Características
+## 🚀 Cómo usar
 
-- ✨ Muestra la fecha actual en español
-- 📅 Santo del día actualizado automáticamente
-- 📖 Resumen del santo tomado de Wikipedia
-- 🔗 Enlace directo a la página de Wikipedia del santo
-- 📱 Diseño responsive (se adapta a móviles y tablets)
-- 🎨 Interfaz moderna y atractiva
+### Ver la página web localmente
+
+**IMPORTANTE**: La página necesita un servidor HTTP para cargar el CSV correctamente.
+
+```bash
+# 1. Ir al directorio del proyecto
+cd "/home/vanafa/Documents/Calendario de santos"
+
+# 2. Iniciar servidor HTTP local
+python3 -m http.server 8000
+
+# 3. Abrir en navegador
+xdg-open http://localhost:8000/index.html
+# O manualmente ir a: http://localhost:8000/index.html
+```
+
+### Poblar/actualizar datos con el scraper
+
+```bash
+# 1. Activar entorno virtual
+source venv/bin/activate
+
+# 2. Ejecutar scraper
+python3 scraper_santos.py
+
+# 3. Elegir opción:
+#    1 = Todo el año (1-2 horas) ⭐ RECOMENDADO
+#    2 = Un mes específico (10-15 min)
+#    3 = Rango de fechas personalizado
+```
+
+**Características del scraper optimizado:**
+- ✅ **Incremental**: Salta santos ya existentes automáticamente
+- ✅ **Seguro**: Puedes interrumpir (Ctrl+C) y reiniciar sin perder progreso
+- ✅ **Rápido**: 2x más rápido con delays reducidos y conexiones reutilizables
+- ✅ **Completo**: Extrae nombre, descripción, imagen, oración, links Wikipedia/Vatican
+
+## 📁 Estructura del proyecto
+
+```
+
+## ✨ Características
+
+- 🗓️ **Selector de fecha sin año**: Elige mes y día para ver los santos de cualquier fecha
+- � **Múltiples santos por día**: Muestra todos los santos celebrados en una fecha
+- 📖 **Descripción completa**: Resumen de la vida y obra del santo (Wikipedia)
+- 🖼️ **Imágenes**: Fotos de los santos (local → Wikipedia → placeholder)
+- 🔗 **Enlaces**: Links directos a Wikipedia y Vatican News
+- 🙏 **Oraciones**: Oraciones asociadas a cada santo (cuando disponible)
+- 📱 **Responsive**: Se adapta a móviles, tablets y desktop
+- 🎨 **Interfaz moderna**: Diseño limpio con gradientes y tarjetas
+
+## 📊 Estado actual
+
+- ✅ Frontend funcionando correctamente
+- ✅ CSV con ~1000+ santos (principalmente noviembre)
+- ✅ Scraper optimizado y listo para uso
+- ⏳ Pendiente: Completar todo el año (ejecutar scraper opción 1)
+
+## 🔧 Tecnologías
+
+- **Frontend**: HTML5, CSS3, JavaScript Vanilla
+- **Backend/Scraper**: Python 3 (BeautifulSoup, Requests)
+- **Datos**: CSV local (generado por scraper automático)
+- **Fuentes**: calendariodesantos.com + Wikipedia API
+- **Hosting**: GitHub Pages (configurado en repo)
 
 ## Cómo Publicar en GitHub Pages
 

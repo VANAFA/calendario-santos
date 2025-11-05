@@ -177,8 +177,14 @@ class SantosCalendarioScraper:
                         dia = int(m2.group(1))  # int() normaliza '01' -> 1
 
                     nombre = enlace.get_text(strip=True)
-                    # Filtrar enlaces que no sean de santos (ej. navegación)
+                    # Filtrar enlaces que no sean de santos (ej. navegación, "Ver todos los santos")
                     if nombre and len(nombre) > 2 and dia is not None:
+                        # Omitir enlaces genéricos como "Ver todos los santos del X de Mes"
+                        if nombre.lower().startswith('ver todos'):
+                            continue
+                        if 'ver todos los santos' in nombre.lower():
+                            continue
+                        
                         santos.append({
                             'mes': mes,
                             'dia': dia,
