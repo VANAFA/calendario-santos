@@ -41,6 +41,81 @@
             margin-bottom: 20px;
         }
 
+        .search-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+            min-height: 44px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #764ba2;
+            box-shadow: 0 0 5px rgba(118, 75, 162, 0.3);
+        }
+
+        .search-results {
+            position: absolute;
+            background: white;
+            border: 2px solid #667eea;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            width: calc(100% - 30px);
+            z-index: 1001;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .search-result-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
+        }
+
+        .search-result-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-result-name {
+            font-weight: 600;
+            color: #764ba2;
+        }
+
+        .search-result-date {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 3px;
+        }
+
+        .priority-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #ffd700, #ffed4e);
+            color: #333;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-left: 8px;
+            box-shadow: 0 2px 5px rgba(255, 215, 0, 0.3);
+        }
+
         .picker-group {
             display: flex;
             flex-direction: column;
@@ -295,6 +370,60 @@
                 font-size: 1.05rem;
             }
         }
+
+        /* Modo LANDSCAPE (horizontal) - Date picker fijo en la parte superior */
+        @media (orientation: landscape) {
+            body {
+                padding-top: 170px; /* Espacio para el date picker y search fijo */
+            }
+
+            .date-picker-container {
+                position: fixed;
+                top: 10px;
+                left: 10px;
+                right: 10px;
+                z-index: 1000;
+                margin-bottom: 0;
+                max-width: 600px;
+            }
+
+            .search-container {
+                position: fixed;
+                top: 90px; /* Debajo del date picker */
+                left: 10px;
+                right: 10px;
+                z-index: 1000;
+                margin-bottom: 0;
+                max-width: 600px;
+            }
+
+            .container {
+                margin-top: 20px;
+            }
+        }
+
+        /* Landscape en tablets y desktop */
+        @media (orientation: landscape) and (min-width: 768px) {
+            body {
+                padding-top: 180px;
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+
+            .date-picker-container {
+                top: 20px;
+                left: 20px;
+                max-width: 500px;
+                right: auto; /* Solo ocupa el ancho necesario en la izquierda */
+            }
+
+            .search-container {
+                top: 110px;
+                left: 20px;
+                max-width: 500px;
+                right: auto;
+            }
+        }
     </style>
 </head>
 <body>
@@ -320,6 +449,11 @@
             <label for="dayPicker">Día:</label>
             <select id="dayPicker"></select>
         </div>
+    </div>
+
+    <div class="search-container">
+        <input type="search" id="searchInput" class="search-input" placeholder="🔍 Buscar santo por nombre..." autocomplete="off">
+        <div id="searchResults" class="search-results" style="display: none;"></div>
     </div>
     
     <div class="container">
@@ -347,15 +481,16 @@
                     if (lines[i].trim() === '') continue;
                     
                     const values = parseCSVLine(lines[i]);
-                    if (values.length >= 6) {
+                    if (values.length >= 7) {
                         santosData.push({
                             mes: parseInt(values[0]),
                             dia: parseInt(values[1]),
                             nombre: values[2],
-                            descripcion: values[3],
-                            imagen: values[4],
-                            url_wikipedia: values[5],
-                            url_vatican: values[6]
+                            prioridad: parseInt(values[3]) || 25,
+                            descripcion: values[4],
+                            imagen: values[5],
+                            url_wikipedia: values[6],
+                            url_vatican: values[7]
                         });
                     }
                 }
@@ -497,7 +632,10 @@
             const day = selectedDate.getDate();
             
             // Buscar en los datos del CSV
-            const saintsForDay = santosData.filter(s => s.mes === month && s.dia === day);
+            let saintsForDay = santosData.filter(s => s.mes === month && s.dia === day);
+            
+            // Ordenar por prioridad (mayor primero)
+            saintsForDay.sort((a, b) => (b.prioridad || 25) - (a.prioridad || 25));
             
             if (saintsForDay.length > 0) {
                 displayMultipleSaints(saintsForDay);
@@ -505,6 +643,7 @@
                 // Si no hay datos en el CSV, mostrar mensaje
                 displayMultipleSaints([{
                     nombre: 'Santo del Día',
+                    prioridad: 25,
                     descripcion: 'No hay información disponible para este día. Puedes agregar los datos en el archivo santos.csv',
                     imagen: '',
                     url_wikipedia: 'https://es.wikipedia.org',
@@ -527,8 +666,20 @@
         async function displaySaintCard(saint, container) {
             const card = document.createElement('div');
             card.className = 'saint-card';
+            card.id = `saint-${saint.nombre.replace(/\s+/g, '-').toLowerCase()}`;
             
             const saintName = saint.nombre || saint.name || 'Santo del Día';
+            const prioridad = saint.prioridad || 25;
+            
+            // Badge de prioridad para santos importantes
+            let priorityBadge = '';
+            if (prioridad >= 90) {
+                priorityBadge = '<span class="priority-badge">⭐ Santo Patrono</span>';
+            } else if (prioridad >= 85) {
+                priorityBadge = '<span class="priority-badge">🇦🇷 Santo Argentino</span>';
+            } else if (prioridad === 100) {
+                priorityBadge = '<span class="priority-badge">✨ Fiesta Mayor</span>';
+            }
             
             // Obtener imagen
             const imageUrl = await getSaintImage(saint);
@@ -551,7 +702,7 @@
             
             card.innerHTML = `
                 ${imageHTML}
-                <div class="saint-name">${saintName}</div>
+                <div class="saint-name">${saintName}${priorityBadge}</div>
                 <div class="saint-description">${description}</div>
                 <div class="links-container">
                     <a href="${wikiUrl}" class="wiki-link" target="_blank">📖 Ver en Wikipedia</a>
@@ -566,8 +717,105 @@
         async function init() {
             await loadSantosCSV();
             initializeDatePickers();
+            initializeSearch();
             displayDate();
             getSaintOfTheDay();
+        }
+
+        // Inicializar búsqueda
+        function initializeSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const searchResults = document.getElementById('searchResults');
+            
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                
+                if (query.length < 2) {
+                    searchResults.style.display = 'none';
+                    return;
+                }
+                
+                // Buscar santos que coincidan
+                const matches = santosData.filter(s => 
+                    s.nombre.toLowerCase().includes(query)
+                ).slice(0, 10); // Limitar a 10 resultados
+                
+                if (matches.length > 0) {
+                    displaySearchResults(matches);
+                    searchResults.style.display = 'block';
+                } else {
+                    searchResults.style.display = 'none';
+                }
+            });
+            
+            // Cerrar resultados al hacer clic fuera
+            document.addEventListener('click', function(e) {
+                if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                    searchResults.style.display = 'none';
+                }
+            });
+        }
+
+        // Mostrar resultados de búsqueda
+        function displaySearchResults(matches) {
+            const searchResults = document.getElementById('searchResults');
+            searchResults.innerHTML = '';
+            
+            matches.forEach(saint => {
+                const item = document.createElement('div');
+                item.className = 'search-result-item';
+                
+                const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                                   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+                
+                item.innerHTML = `
+                    <div class="search-result-name">${saint.nombre}</div>
+                    <div class="search-result-date">${saint.dia} de ${monthNames[saint.mes - 1]}</div>
+                `;
+                
+                item.addEventListener('click', function() {
+                    navigateToSaint(saint);
+                    searchResults.style.display = 'none';
+                    document.getElementById('searchInput').value = '';
+                });
+                
+                searchResults.appendChild(item);
+            });
+        }
+
+        // Navegar al día del santo y hacer scroll
+        async function navigateToSaint(saint) {
+            // Actualizar la fecha
+            selectedDate.setMonth(saint.mes - 1);
+            selectedDate.setDate(saint.dia);
+            
+            // Actualizar los selectores
+            document.getElementById('monthPicker').value = saint.mes - 1;
+            updateDayPicker();
+            document.getElementById('dayPicker').value = saint.dia;
+            
+            // Actualizar la vista
+            displayDate();
+            await getSaintOfTheDay();
+            
+            // Hacer scroll al santo específico después de un pequeño delay
+            setTimeout(() => {
+                const saintId = `saint-${saint.nombre.replace(/\s+/g, '-').toLowerCase()}`;
+                const saintCard = document.getElementById(saintId);
+                
+                if (saintCard) {
+                    saintCard.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center' 
+                    });
+                    
+                    // Destacar el santo brevemente
+                    saintCard.style.boxShadow = '0 0 20px rgba(118, 75, 162, 0.6)';
+                    setTimeout(() => {
+                        saintCard.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.1)';
+                    }, 2000);
+                }
+            }, 300);
         }
         
         // Ejecutar cuando se cargue la página

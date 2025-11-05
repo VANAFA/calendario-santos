@@ -27,7 +27,7 @@ class SantosCalendarioScraper:
         self.archivo_csv = "santos.csv"
         self.pagina_cache = None
         self.santos_extraidos = {}
-        self.santos_existentes = set()  # Cache de santos ya procesados
+        self.santos_existentes = {}  # Dict con datos completos de santos existentes
         
         # Headers para simular un navegador
         self.headers = {
@@ -42,11 +42,44 @@ class SantosCalendarioScraper:
         if not os.path.exists(self.directorio_imagenes):
             os.makedirs(self.directorio_imagenes)
         
+        # Fiestas litúrgicas con máxima prioridad
+        self.fiestas_mayores = {
+            'todos los santos': 100,
+            'inmaculada concepción': 100,
+            'navidad': 100,
+            'año nuevo': 100,
+            'epifanía': 100,
+            'miércoles de ceniza': 100,
+            'semana santa': 100,
+            'jueves santo': 100,
+            'viernes santo': 100,
+            'sábado santo': 100,
+            'pascua': 100,
+            'resurrección': 100,
+            'ascensión': 100,
+            'pentecostés': 100,
+            'corpus christi': 100,
+            'asunción': 100,
+            'todos los fieles difuntos': 100,
+            'día de los muertos': 100,
+        }
+        
+        # Santos patronos de Argentina con alta prioridad
+        self.santos_argentinos = {
+            'san martín de tours': 90,  # Patrono de Buenos Aires
+            'nuestra señora de luján': 95,  # Patrona de Argentina
+            'santa rosa de lima': 85,
+            'san cayetano': 85,
+            'ceferino namuncurá': 90,
+            'mama antula': 85,
+            'josé gabriel brochero': 90,
+        }
+        
         # Cargar santos existentes del CSV
         self._cargar_santos_existentes()
     
     def _cargar_santos_existentes(self):
-        """Carga la lista de santos ya procesados desde el CSV existente"""
+        """Carga los santos ya procesados desde el CSV existente con todos sus datos"""
         if os.path.exists(self.archivo_csv):
             try:
                 with open(self.archivo_csv, 'r', encoding='utf-8') as f:
@@ -54,15 +87,94 @@ class SantosCalendarioScraper:
                     for row in reader:
                         # Crear una clave única: mes-dia-nombre
                         clave = f"{row['mes']}-{row['dia']}-{row['nombre']}"
-                        self.santos_existentes.add(clave)
-                print(f"📋 Cargados {len(self.santos_existentes)} santos existentes del CSV\n")
+                        
+                        # Si el CSV no tiene prioridad, calcularla ahora
+                        if 'prioridad' not in row or not row['prioridad']:
+                            row['prioridad'] = self._calcular_prioridad(row['nombre'], row.get('descripcion', ''))
+                        
+                        # Guardar el diccionario completo
+                        self.santos_existentes[clave] = row
+                        
+                print(f"✅ Cargados {len(self.santos_existentes)} santos existentes del CSV")
             except Exception as e:
-                print(f"⚠️ No se pudo cargar CSV existente: {e}\n")
+                print(f"⚠️ Error al cargar santos existentes: {e}")
+                self.santos_existentes = {}
+    
+    def _calcular_prioridad(self, nombre, descripcion=""):
+        """
+        Calcula la prioridad de un santo basándose en:
+        1. Fiestas litúrgicas mayores: 100
+        2. Santos argentinos: 85-95
+        3. Santos con 'argentina' en descripción: 70-80
+        4. Santos populares (beato/santo): 40-60
+        5. Resto: 20-30
+        """
+        nombre_lower = nombre.lower()
+        desc_lower = descripcion.lower() if descripcion else ""
+        
+        # 1. Fiestas mayores
+        for fiesta, prioridad in self.fiestas_mayores.items():
+            if fiesta in nombre_lower:
+                return prioridad
+        
+        # 2. Santos argentinos
+        for santo, prioridad in self.santos_argentinos.items():
+            if santo in nombre_lower:
+                return prioridad
+        
+        # 3. Referencias a Argentina en descripción
+        if 'argentina' in desc_lower or 'argentino' in desc_lower:
+            return 75
+        
+        # 4. Popularidad por título
+        if 'san ' in nombre_lower or 'santa ' in nombre_lower:
+            return 50
+        elif 'beato' in nombre_lower or 'beata' in nombre_lower:
+            return 40
+        elif 'venerable' in nombre_lower:
+            return 35
+        
+        # 5. Default
+        return 25
+    
+    def _santo_necesita_actualizacion(self, mes, dia, nombre):
+        """
+        Verifica qué campos le faltan a un santo existente.
+        Retorna: dict con las operaciones necesarias o None si está completo
+        """
+        clave = f"{mes}-{dia}-{nombre}"
+        
+        if clave not in self.santos_existentes:
+            return {'completo': True}  # No existe, hay que crearlo completo
+        
+        santo = self.santos_existentes[clave]
+        operaciones = {}
+        
+        # Verificar prioridad
+        if 'prioridad' not in santo or not santo['prioridad']:
+            operaciones['prioridad'] = True
+        
+        # Verificar imagen
+        if not santo.get('imagen'):
+            operaciones['imagen'] = True
+        
+        # Verificar descripción
+        if not santo.get('descripcion') or len(santo.get('descripcion', '')) < 50:
+            operaciones['descripcion'] = True
+        
+        # Verificar URLs
+        if not santo.get('url_wikipedia'):
+            operaciones['url_wikipedia'] = True
+        
+        if not santo.get('oracion'):
+            operaciones['oracion'] = True
+        
+        return operaciones if operaciones else None
     
     def _santo_ya_procesado(self, mes, dia, nombre):
-        """Verifica si un santo ya fue procesado"""
-        clave = f"{mes}-{dia}-{nombre}"
-        return clave in self.santos_existentes
+        """Verifica si un santo ya fue procesado completamente"""
+        ops = self._santo_necesita_actualizacion(mes, dia, nombre)
+        return ops is None  # None significa que no necesita nada, está completo
     
     def limpiar_nombre_archivo(self, nombre):
         """Convierte el nombre del santo en un nombre de archivo válido"""
@@ -272,10 +384,14 @@ class SantosCalendarioScraper:
         # URL Vatican News (mantener el esquema previo)
         url_vatican = f"https://www.vaticannews.va/es/santos/{mes:02d}/{dia:02d}.html"
 
+        # Calcular prioridad
+        prioridad = self._calcular_prioridad(nombre_santo, descripcion)
+
         resultado = {
             'mes': mes,
             'dia': dia,
             'nombre': nombre_santo,
+            'prioridad': prioridad,
             'descripcion': descripcion,
             'imagen': imagen_descargada,
             'url_wikipedia': url_wikipedia,
@@ -453,7 +569,7 @@ class SantosCalendarioScraper:
         archivo_existe = os.path.exists(self.archivo_csv)
         
         with open(self.archivo_csv, 'a' if archivo_existe else 'w', newline='', encoding='utf-8') as f:
-            campos = ['mes', 'dia', 'nombre', 'descripcion', 'imagen', 'url_wikipedia', 'url_vatican', 'oracion']
+            campos = ['mes', 'dia', 'nombre', 'prioridad', 'descripcion', 'imagen', 'url_wikipedia', 'url_vatican', 'oracion']
             writer = csv.DictWriter(f, fieldnames=campos)
             
             # Solo escribir header si es archivo nuevo
@@ -462,9 +578,9 @@ class SantosCalendarioScraper:
             
             for dato in datos:
                 writer.writerow(dato)
-                # Agregar al cache de existentes
+                # Agregar al cache de existentes con los datos completos
                 clave = f"{dato['mes']}-{dato['dia']}-{dato['nombre']}"
-                self.santos_existentes.add(clave)
+                self.santos_existentes[clave] = dato
         
         print(f"✅ Archivo {self.archivo_csv} actualizado con {len(datos)} santos nuevos\n")
     
