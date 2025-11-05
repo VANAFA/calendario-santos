@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Santo del Día</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 50px;
+            max-width: 1200px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .date-picker-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .date-picker-container label {
+            color: #667eea;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .date-picker-container select {
+            padding: 8px 12px;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            font-size: 1rem;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        .date-picker-container select:hover {
+            border-color: #764ba2;
+        }
+
+        .date-picker-container select:focus {
+            outline: none;
+            border-color: #764ba2;
+            box-shadow: 0 0 5px rgba(118, 75, 162, 0.3);
+        }
+
+        .date {
+            font-size: 4rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .saints-container {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            margin-top: 30px;
+        }
+
+        .saint-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .saint-image {
+            width: 250px;
+            height: 250px;
+            object-fit: cover;
+            border-radius: 15px;
+            margin: 0 auto 20px;
+            display: block;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .saint-image.placeholder {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 4rem;
+        }
+
+        .saint-name {
+            font-size: 2.5rem;
+            color: #764ba2;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .saint-description {
+            font-size: 1.2rem;
+            line-height: 1.8;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: justify;
+        }
+
+        .links-container {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .wiki-link {
+            display: inline-block;
+            padding: 15px 30px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .wiki-link:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(118, 75, 162, 0.4);
+        }
+
+        .vatican-link {
+            display: inline-block;
+            padding: 15px 30px;
+            background: #ffd700;
+            color: #333;
+            text-decoration: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+            font-weight: bold;
+        }
+
+        .vatican-link:hover {
+            background: #ffed4e;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.6);
+        }
+
+        .loading {
+            font-size: 1.5rem;
+            color: #667eea;
+        }
+
+        .error {
+            color: #e74c3c;
+            font-size: 1.2rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px;
+            }
+            
+            .date {
+                font-size: 2.5rem;
+            }
+            
+            .saint-name {
+                font-size: 1.8rem;
+            }
+            
+            .saint-description {
+                font-size: 1rem;
+            }
+
+            .date-picker-container {
+                position: relative;
+                top: 0;
+                right: 0;
+                margin-bottom: 20px;
+            }
+
+            .saint-image {
+                width: 200px;
+                height: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="date-picker-container">
+        <label for="monthPicker">Mes:</label>
+        <select id="monthPicker">
+            <option value="0">Enero</option>
+            <option value="1">Febrero</option>
+            <option value="2">Marzo</option>
+            <option value="3">Abril</option>
+            <option value="4">Mayo</option>
+            <option value="5">Junio</option>
+            <option value="6">Julio</option>
+            <option value="7">Agosto</option>
+            <option value="8">Septiembre</option>
+            <option value="9">Octubre</option>
+            <option value="10">Noviembre</option>
+            <option value="11">Diciembre</option>
+        </select>
+        <label for="dayPicker">Día:</label>
+        <select id="dayPicker"></select>
+    </div>
+    
+    <div class="container">
+        <div class="date" id="date">Cargando...</div>
+        <div id="saintsContainer">
+            <div class="loading">Buscando santos del día...</div>
+        </div>
+    </div>
+
+    <script>
+        let selectedDate = new Date();
+        let santosData = []; // Almacenar datos del CSV
+
+        // Cargar el CSV al iniciar
+        async function loadSantosCSV() {
+            try {
+                const response = await fetch('santos.csv');
+                const csvText = await response.text();
+                
+                // Parsear CSV
+                const lines = csvText.split('\n');
+                const headers = lines[0].split(',');
+                
+                for (let i = 1; i < lines.length; i++) {
+                    if (lines[i].trim() === '') continue;
+                    
+                    const values = parseCSVLine(lines[i]);
+                    if (values.length >= 6) {
+                        santosData.push({
+                            mes: parseInt(values[0]),
+                            dia: parseInt(values[1]),
+                            nombre: values[2],
+                            descripcion: values[3],
+                            imagen: values[4],
+                            url_wikipedia: values[5],
+                            url_vatican: values[6]
+                        });
+                    }
+                }
+                
+                console.log(`Cargados ${santosData.length} santos desde CSV`);
+            } catch (error) {
+                console.error('Error cargando CSV:', error);
+            }
+        }
+
+        // Parsear línea CSV (maneja comas dentro de comillas)
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current.trim());
+            
+            return result;
+        }
+
+        // Inicializar selectores
+        function initializeDatePickers() {
+            const monthPicker = document.getElementById('monthPicker');
+            const dayPicker = document.getElementById('dayPicker');
+            
+            monthPicker.value = selectedDate.getMonth();
+            updateDayPicker();
+            dayPicker.value = selectedDate.getDate();
+            
+            monthPicker.addEventListener('change', function() {
+                selectedDate.setMonth(parseInt(this.value));
+                updateDayPicker();
+                displayDate();
+                getSaintOfTheDay();
+            });
+            
+            dayPicker.addEventListener('change', function() {
+                selectedDate.setDate(parseInt(this.value));
+                displayDate();
+                getSaintOfTheDay();
+            });
+        }
+
+        // Actualizar días según el mes
+        function updateDayPicker() {
+            const dayPicker = document.getElementById('dayPicker');
+            const month = selectedDate.getMonth();
+            const year = selectedDate.getFullYear();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            const currentDay = selectedDate.getDate();
+            dayPicker.innerHTML = '';
+            
+            for (let i = 1; i <= daysInMonth; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = i;
+                dayPicker.appendChild(option);
+            }
+            
+            // Mantener el día seleccionado o ajustar si es inválido
+            if (currentDay <= daysInMonth) {
+                dayPicker.value = currentDay;
+            } else {
+                dayPicker.value = daysInMonth;
+                selectedDate.setDate(daysInMonth);
+            }
+        }
+
+        // Mostrar la fecha actual
+        function displayDate() {
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            };
+            const dateString = selectedDate.toLocaleDateString('es-ES', options);
+            document.getElementById('date').textContent = dateString;
+        }
+
+        // Obtener imagen del santo desde Wikipedia/Wikimedia o carpeta local
+        async function getSaintImage(saint) {
+            // Primero intentar cargar la imagen local
+            if (saint.imagen && saint.imagen !== '') {
+                const localImagePath = `images/${saint.imagen}`;
+                
+                // Verificar si la imagen local existe
+                try {
+                    const response = await fetch(localImagePath, { method: 'HEAD' });
+                    if (response.ok) {
+                        return localImagePath;
+                    }
+                } catch (e) {
+                    console.log('Imagen local no encontrada:', localImagePath);
+                }
+            }
+            
+            // Si no hay imagen local, intentar desde Wikipedia
+            try {
+                const saintName = saint.nombre || saint.name || '';
+                const cleanName = saintName.replace(/^San(to|ta)?\s+/i, '');
+                
+                const searchUrl = `https://es.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(saintName)}&prop=pageimages&format=json&pithumbsize=300&origin=*`;
+                
+                const response = await fetch(searchUrl);
+                const data = await response.json();
+                
+                const pages = data.query.pages;
+                const pageId = Object.keys(pages)[0];
+                
+                if (pages[pageId].thumbnail) {
+                    return pages[pageId].thumbnail.source;
+                }
+                
+                return null;
+            } catch (error) {
+                console.error('Error al obtener imagen:', error);
+                return null;
+            }
+        }
+
+        // Obtener el santo del día desde múltiples fuentes
+        async function getSaintOfTheDay() {
+            const month = selectedDate.getMonth() + 1;
+            const day = selectedDate.getDate();
+            
+            // Buscar en los datos del CSV
+            const saintsForDay = santosData.filter(s => s.mes === month && s.dia === day);
+            
+            if (saintsForDay.length > 0) {
+                displayMultipleSaints(saintsForDay);
+            } else {
+                // Si no hay datos en el CSV, mostrar mensaje
+                displayMultipleSaints([{
+                    nombre: 'Santo del Día',
+                    descripcion: 'No hay información disponible para este día. Puedes agregar los datos en el archivo santos.csv',
+                    imagen: '',
+                    url_wikipedia: 'https://es.wikipedia.org',
+                    url_vatican: 'https://www.vaticannews.va/es/santos.html'
+                }]);
+            }
+        }
+
+        // Mostrar múltiples santos
+        async function displayMultipleSaints(saints) {
+            const container = document.getElementById('saintsContainer');
+            container.innerHTML = '';
+            
+            for (const saint of saints) {
+                await displaySaintCard(saint, container);
+            }
+        }
+
+        // Crear una tarjeta para cada santo
+        async function displaySaintCard(saint, container) {
+            const card = document.createElement('div');
+            card.className = 'saint-card';
+            
+            const saintName = saint.nombre || saint.name || 'Santo del Día';
+            
+            // Obtener imagen
+            const imageUrl = await getSaintImage(saint);
+            
+            let imageHTML;
+            if (imageUrl) {
+                imageHTML = `<img src="${imageUrl}" alt="${saintName}" class="saint-image">`;
+            } else {
+                // Icono de placeholder si no hay imagen
+                imageHTML = `<div class="saint-image placeholder">✝</div>`;
+            }
+            
+            let description = saint.descripcion || saint.description || saint.historia || '';
+            if (description.length > 400) {
+                description = description.substring(0, 400) + '...';
+            }
+            
+            const wikiUrl = saint.url_wikipedia || saint.url || saint.wiki_url || `https://es.wikipedia.org/wiki/${encodeURIComponent(saintName)}`;
+            const vaticanUrl = saint.url_vatican || `https://www.vaticannews.va/es/santos.html`;
+            
+            card.innerHTML = `
+                ${imageHTML}
+                <div class="saint-name">${saintName}</div>
+                <div class="saint-description">${description}</div>
+                <div class="links-container">
+                    <a href="${wikiUrl}" class="wiki-link" target="_blank">📖 Ver en Wikipedia</a>
+                    <a href="${vaticanUrl}" class="vatican-link" target="_blank">✝️ Vatican News</a>
+                </div>
+            `;
+            
+            container.appendChild(card);
+        }
+
+        // Inicializar la página
+        async function init() {
+            await loadSantosCSV();
+            initializeDatePickers();
+            displayDate();
+            getSaintOfTheDay();
+        }
+        
+        // Ejecutar cuando se cargue la página
+        init();
+    </script>
+</body>
+</html>
+            const month = selectedDate.getMonth() + 1;
+            const day = selectedDate.getDate();
+            
+            // Calendario completo de santos principales por día del año
+            const saintsCalendar = {
+                // Enero
+                '1-1': [
+                    { nombre: 'Santa María, Madre de Dios', descripcion: 'Solemnidad de Santa María, Madre de Dios. La Iglesia Católica celebra la maternidad divina de María.' },
+                    { nombre: 'San Basilio el Grande', descripcion: 'Obispo de Cesarea y Doctor de la Iglesia. Uno de los grandes Padres Capadocios del siglo IV.' }
+                ],
+                '1-2': [{ nombre: 'San Basilio Magno y San Gregorio Nacianceno', descripcion: 'Obispos y Doctores de la Iglesia, grandes defensores de la fe nicena.' }],
+                '1-3': [{ nombre: 'Santa Genoveva', descripcion: 'Virgen, patrona de París. Protegió a la ciudad de la invasión de los hunos.' }],
+                '1-4': [{ nombre: 'Santa Isabel Ana Seton', descripcion: 'Primera santa nacida en Estados Unidos, fundadora de las Hermanas de la Caridad.' }],
+                '1-5': [{ nombre: 'San Juan Nepomuceno Neumann', descripcion: 'Obispo de Filadelfia, primer obispo estadounidense canonizado.' }],
+                '1-6': [{ nombre: 'Epifanía del Señor', descripcion: 'Manifestación de Jesús a los Reyes Magos, representando la revelación de Cristo a todas las naciones.' }],
+                '1-7': [{ nombre: 'San Raimundo de Peñafort', descripcion: 'Sacerdote dominico, gran canonista y confesor de papas y reyes.' }],
+                '1-8': [{ nombre: 'San Severino de Nórico', descripcion: 'Monje y misionero, evangelizador del Nórico.' }],
+                '1-9': [{ nombre: 'San Adrián de Canterbury', descripcion: 'Abad y misionero en Inglaterra.' }],
+                '1-10': [{ nombre: 'San Gregorio X', descripcion: 'Papa del siglo XIII, promovió la unión con la Iglesia Oriental.' }],
+                '1-11': [{ nombre: 'San Teodosio el Cenobiarca', descripcion: 'Monje fundador de monasterios en Palestina.' }],
+                '1-12': [{ nombre: 'San Arcadio', descripcion: 'Mártir africano del siglo IV.' }],
+                '1-13': [{ nombre: 'San Hilario de Poitiers', descripcion: 'Obispo y Doctor de la Iglesia, defensor de la fe contra el arrianismo.' }],
+                '1-14': [{ nombre: 'San Félix de Nola', descripcion: 'Sacerdote y confesor, venerado en Nápoles.' }],
+                '1-15': [{ nombre: 'San Mauro', descripcion: 'Abad benedictino, discípulo de San Benito.' }],
+                '1-16': [{ nombre: 'San Marcelo I', descripcion: 'Papa y mártir del siglo IV.' }],
+                '1-17': [{ nombre: 'San Antonio Abad', descripcion: 'Monje ermitaño, padre del monacato cristiano. Patrono de los animales.' }],
+                '1-18': [{ nombre: 'Santa Prisca', descripcion: 'Virgen y mártir romana del siglo I.' }],
+                '1-19': [{ nombre: 'San Mario y compañeros', descripcion: 'Mártires persas en Roma.' }],
+                '1-20': [{ nombre: 'San Fabián', descripcion: 'Papa y mártir del siglo III.' }, { nombre: 'San Sebastián', descripcion: 'Mártir romano, soldado que fue ejecutado por ser cristiano. Muy venerado en España y Latinoamérica.' }],
+                '1-21': [{ nombre: 'Santa Inés', descripcion: 'Virgen y mártir romana del siglo IV, símbolo de pureza y fidelidad a Cristo.' }],
+                '1-22': [{ nombre: 'San Vicente Mártir', descripcion: 'Diácono de Zaragoza, mártir del siglo IV. Patrono de Valencia y Lisboa. Sufrió crueles tormentos por su fe.' }],
+                '1-23': [
+                    { nombre: 'Santa Emerenciana', descripcion: 'Mártir romana. Cristiana sin ser bautizada, según una antigua historia, murió durante el funeral de su amiga, santa Inés, martirizada en Roma en la época de Diocleciano. Mientras los fieles huían al ser atacados por un grupo de paganos, ella no se escapó sino que los enfrentó valientemente, pero murió apedreada.' },
+                    { nombre: 'San Ildefonso', descripcion: 'Obispo de Toledo. Querían que hiciera carrera eclesiástica, pero Ildefonso huyó, se refugió en un monasterio y se hizo monje. Devoto de María, escribió un famoso tratado sobre la Virgen y la Virgen se le apareció en 660, dándole la casulla con la que, primero como sacerdote y luego como obispo, celebraba las fiestas.' }
+                ],
+                '1-24': [{ nombre: 'San Francisco de Sales', descripcion: 'Obispo de Ginebra y Doctor de la Iglesia, patrono de los escritores y periodistas.' }],
+                '1-25': [{ nombre: 'Conversión de San Pablo', descripcion: 'Celebración de la conversión del apóstol Pablo en el camino a Damasco.' }],
+                '1-26': [{ nombre: 'Santos Timoteo y Tito', descripcion: 'Obispos, discípulos y colaboradores de San Pablo.' }],
+                '1-27': [{ nombre: 'Santa Ángela de Mérici', descripcion: 'Virgen, fundadora de las Ursulinas.' }],
+                '1-28': [{ nombre: 'Santo Tomás de Aquino', descripcion: 'Sacerdote dominico y Doctor de la Iglesia, uno de los más grandes teólogos de la historia.' }],
+                '1-29': [{ nombre: 'San Valero', descripcion: 'Obispo de Zaragoza, maestro de San Vicente Mártir.' }],
+                '1-30': [{ nombre: 'Santa Martina', descripcion: 'Virgen y mártir romana del siglo III.' }],
+                '1-31': [{ nombre: 'San Juan Bosco', descripcion: 'Sacerdote y fundador de los Salesianos, dedicado a la educación de los jóvenes.' }],
+                
+                // Febrero
+                '2-1': [{ nombre: 'Santa Brígida de Kildare', descripcion: 'Abadesa irlandesa, patrona de Irlanda junto con San Patricio.' }],
+                '2-2': [{ nombre: 'Presentación del Señor', descripcion: 'Fiesta de la presentación de Jesús en el Templo, también conocida como la Candelaria.' }],
+                '2-3': [{ nombre: 'San Blas', descripcion: 'Obispo y mártir, invocado contra las enfermedades de la garganta.' }],
+                '2-4': [{ nombre: 'San Andrés Corsini', descripcion: 'Obispo carmelita, pacificador de Florencia.' }],
+                '2-5': [{ nombre: 'Santa Águeda', descripcion: 'Virgen y mártir siciliana del siglo III.' }],
+                '2-6': [{ nombre: 'San Pablo Miki y compañeros', descripcion: 'Mártires del Japón, crucificados en Nagasaki.' }],
+                '2-7': [{ nombre: 'Santa Juliana', descripcion: 'Viuda y mártir.' }],
+                '2-8': [{ nombre: 'San Jerónimo Emiliani', descripcion: 'Fundador de los Clérigos Regulares Somascos, patrono de huérfanos.' }],
+                '2-9': [{ nombre: 'Santa Apolonia', descripcion: 'Virgen y mártir, patrona de los dentistas.' }],
+                '2-10': [{ nombre: 'Santa Escolástica', descripcion: 'Virgen, hermana de San Benito y primera monja benedictina.' }],
+                '2-11': [{ nombre: 'Nuestra Señora de Lourdes', descripcion: 'Conmemoración de las apariciones de la Virgen María en Lourdes, Francia.' }],
+                '2-12': [{ nombre: 'Santa Eulalia de Barcelona', descripcion: 'Virgen y mártir, patrona de Barcelona.' }],
+                '2-13': [{ nombre: 'San Benigno de Todi', descripcion: 'Mártir del siglo III.' }],
+                '2-14': [{ nombre: 'Santos Cirilo y Metodio', descripcion: 'Hermanos, evangelizadores de los pueblos eslavos, patronos de Europa.' }],
+                '2-15': [{ nombre: 'San Claudio', descripcion: 'Mártir junto con sus compañeros.' }],
+                '2-16': [{ nombre: 'Santa Juliana', descripcion: 'Virgen y mártir de Nicomedia.' }],
+                '2-17': [{ nombre: 'Los Siete Fundadores de la Orden de los Siervos', descripcion: 'Fundadores de la Orden de los Servitas en Florencia.' }],
+                '2-18': [{ nombre: 'Santa Bernardita Soubirous', descripcion: 'Vidente de Lourdes, religiosa.' }],
+                '2-19': [{ nombre: 'San Conrado de Piacenza', descripcion: 'Terciario franciscano, ermitaño.' }],
+                '2-20': [{ nombre: 'San Eleuterio', descripcion: 'Obispo de Tournai y mártir.' }],
+                '2-21': [{ nombre: 'San Pedro Damián', descripcion: 'Obispo y Doctor de la Iglesia, reformador benedictino.' }],
+                '2-22': [{ nombre: 'Cátedra de San Pedro', descripcion: 'Fiesta que celebra el ministerio de San Pedro como pastor de la Iglesia.' }],
+                '2-23': [{ nombre: 'San Policarpo', descripcion: 'Obispo de Esmirna y mártir, discípulo de San Juan Apóstol.' }],
+                '2-24': [{ nombre: 'San Sergio de Cesarea', descripcion: 'Mártir del siglo IV.' }],
+                '2-25': [{ nombre: 'San Cesáreo de Nazianzo', descripcion: 'Médico y hermano de San Gregorio Nacianceno.' }],
+                '2-26': [{ nombre: 'San Alejandro de Alejandría', descripcion: 'Obispo que presidió el Concilio de Nicea.' }],
+                '2-27': [{ nombre: 'San Gabriel de la Dolorosa', descripcion: 'Religioso pasionista, devoto de la Virgen.' }],
+                '2-28': [{ nombre: 'San Román', descripcion: 'Abad de Condat.' }],
+                '2-29': [{ nombre: 'San Augusto Chapdelaine', descripcion: 'Sacerdote misionero y mártir en China.' }],
+                
+                // Marzo
+                '3-1': [{ nombre: 'San Rosendo', descripcion: 'Obispo de Mondoñedo, fundador de monasterios en Galicia.' }],
+                '3-2': [{ nombre: 'San Heraclio', descripcion: 'Mártir de Alejandría.' }],
+                '3-3': [{ nombre: 'San Emeterio y San Celedonio', descripcion: 'Mártires de Calahorra, patronos de Santander.' }],
+                '3-4': [{ nombre: 'San Casimiro', descripcion: 'Príncipe de Polonia, patrono de Polonia y Lituania.' }],
+                '3-5': [{ nombre: 'San Juan José de la Cruz', descripcion: 'Religioso franciscano español.' }],
+                '3-6': [{ nombre: 'San Olegario', descripcion: 'Obispo de Tarragona, arzobispo y cruzado.' }],
+                '3-7': [{ nombre: 'Santas Perpetua y Felicidad', descripcion: 'Mártires africanas del siglo III, murieron en el anfiteatro de Cartago.' }],
+                '3-8': [{ nombre: 'San Juan de Dios', descripcion: 'Fundador de la Orden Hospitalaria, patrono de los enfermos y hospitales.' }],
+                '3-9': [{ nombre: 'Santa Francisca Romana', descripcion: 'Viuda y fundadora de las Oblatas Olivetanas.' }],
+                '3-10': [{ nombre: 'San Macario de Jerusalén', descripcion: 'Obispo que descubrió la Santa Cruz.' }],
+                '3-11': [{ nombre: 'San Constantino', descripcion: 'Rey de Cornualles, mártir.' }],
+                '3-12': [{ nombre: 'San Gregorio Magno', descripcion: 'Papa, Doctor de la Iglesia, reformador de la liturgia.' }],
+                '3-13': [{ nombre: 'Santa Cristina', descripcion: 'Virgen y mártir persa.' }],
+                '3-14': [{ nombre: 'Santa Matilde', descripcion: 'Reina de Alemania, conocida por su caridad.' }],
+                '3-15': [{ nombre: 'San Clemente María Hofbauer', descripcion: 'Sacerdote redentorista, apóstol de Viena.' }],
+                '3-16': [{ nombre: 'San Heriberto', descripcion: 'Obispo de Colonia.' }],
+                '3-17': [{ nombre: 'San Patricio', descripcion: 'Obispo, evangelizador y patrono de Irlanda.' }],
+                '3-18': [{ nombre: 'San Cirilo de Jerusalén', descripcion: 'Obispo y Doctor de la Iglesia, autor de catequesis.' }],
+                '3-19': [{ nombre: 'San José', descripcion: 'Esposo de la Virgen María y padre adoptivo de Jesús, patrono de la Iglesia Universal.' }],
+                '3-20': [{ nombre: 'San Martín de Dumio', descripcion: 'Obispo y evangelizador de los suevos.' }],
+                '3-21': [{ nombre: 'San Nicolás de Flüe', descripcion: 'Ermitaño suizo, patrono de Suiza.' }],
+                '3-22': [{ nombre: 'San Bienvenido de Osimo', descripcion: 'Obispo franciscano.' }],
+                '3-23': [{ nombre: 'Santo Toribio de Mogrovejo', descripcion: 'Arzobispo de Lima, gran evangelizador de América del Sur.' }],
+                '3-24': [{ nombre: 'San Catalina de Suecia', descripcion: 'Abadesa, hija de Santa Brígida.' }],
+                '3-25': [{ nombre: 'Anunciación del Señor', descripcion: 'Fiesta de la Anunciación del ángel Gabriel a María.' }],
+                '3-26': [{ nombre: 'San Braulio', descripcion: 'Obispo de Zaragoza, Doctor y escritor.' }],
+                '3-27': [{ nombre: 'San Ruperto', descripcion: 'Obispo de Salzburgo, evangelizador de Baviera.' }],
+                '3-28': [{ nombre: 'San Gontran', descripcion: 'Rey de Borgoña, conocido por su generosidad.' }],
+                '3-29': [{ nombre: 'San Eustasio de Luxeuil', descripcion: 'Abad benedictino.' }],
+                '3-30': [{ nombre: 'San Juan Clímaco', descripcion: 'Monje y escritor espiritual.' }],
+                '3-31': [{ nombre: 'San Benjamín', descripcion: 'Diácono y mártir persa.' }],
+                
+                // Abril
+                '4-2': [{ nombre: 'San Francisco de Paula', descripcion: 'Fundador de los Mínimos, taumaturgo italiano.' }],
+                '4-4': [{ nombre: 'San Isidoro de Sevilla', descripcion: 'Arzobispo y Doctor de la Iglesia, gran erudito medieval.' }],
+                '4-5': [{ nombre: 'San Vicente Ferrer', descripcion: 'Sacerdote dominico, gran predicador y misionero.' }],
+                '4-7': [{ nombre: 'San Juan Bautista de la Salle', descripcion: 'Sacerdote y fundador de los Hermanos de las Escuelas Cristianas.' }],
+                '4-11': [{ nombre: 'San Estanislao', descripcion: 'Obispo de Cracovia y mártir, patrono de Polonia.' }],
+                '4-21': [{ nombre: 'San Anselmo', descripcion: 'Arzobispo de Canterbury y Doctor de la Iglesia.' }],
+                '4-23': [{ nombre: 'San Jorge', descripcion: 'Mártir y santo patrón de Inglaterra, Cataluña y Aragón. Conocido por la leyenda del dragón.' }],
+                '4-24': [{ nombre: 'San Fidel de Sigmaringa', descripcion: 'Sacerdote capuchino y mártir.' }],
+                '4-25': [{ nombre: 'San Marcos Evangelista', descripcion: 'Evangelista, autor del segundo Evangelio.' }],
+                '4-29': [{ nombre: 'Santa Catalina de Siena', descripcion: 'Virgen, Doctora de la Iglesia y patrona de Europa e Italia.' }],
+                '4-30': [{ nombre: 'San Pío V', descripcion: 'Papa que promovió la reforma litúrgica tras el Concilio de Trento.' }],
+                
+                // Mayo
+                '5-1': [{ nombre: 'San José Obrero', descripcion: 'Celebración de San José como modelo de trabajadores.' }],
+                '5-2': [{ nombre: 'San Atanasio', descripcion: 'Obispo de Alejandría y Doctor de la Iglesia, defensor de la divinidad de Cristo.' }],
+                '5-3': [{ nombre: 'Santos Felipe y Santiago', descripcion: 'Apóstoles de Jesucristo.' }],
+                '5-12': [{ nombre: 'Santos Nereo y Aquileo', descripcion: 'Mártires romanos del siglo I.' }],
+                '5-13': [{ nombre: 'Nuestra Señora de Fátima', descripcion: 'Conmemoración de las apariciones de la Virgen María en Fátima, Portugal.' }],
+                '5-14': [{ nombre: 'San Matías Apóstol', descripcion: 'Apóstol elegido para reemplazar a Judas Iscariote.' }],
+                '5-15': [{ nombre: 'San Isidro Labrador', descripcion: 'Patrón de Madrid y de los agricultores.' }],
+                '5-18': [{ nombre: 'San Juan I', descripcion: 'Papa y mártir del siglo VI.' }],
+                '5-20': [{ nombre: 'San Bernardino de Siena', descripcion: 'Sacerdote franciscano, gran predicador.' }],
+                '5-22': [{ nombre: 'Santa Rita de Casia', descripcion: 'Viuda y religiosa agustina, patrona de causas imposibles.' }],
+                '5-25': [{ nombre: 'San Beda el Venerable', descripcion: 'Monje y Doctor de la Iglesia, gran historiador inglés.' }],
+                '5-26': [{ nombre: 'San Felipe Neri', descripcion: 'Sacerdote, fundador del Oratorio, conocido como el "santo de la alegría".' }],
+                '5-27': [{ nombre: 'San Agustín de Canterbury', descripcion: 'Obispo, evangelizador de Inglaterra.' }],
+                '5-31': [{ nombre: 'Visitación de la Virgen María', descripcion: 'Fiesta de la visita de María a su prima Isabel.' }],
+                
+                // Junio
+                '6-1': [{ nombre: 'San Justino', descripcion: 'Filósofo y mártir, uno de los primeros apologistas cristianos.' }],
+                '6-3': [{ nombre: 'Santos Carlos Lwanga y compañeros', descripcion: 'Mártires de Uganda, jóvenes que murieron por su fe.' }],
+                '6-5': [{ nombre: 'San Bonifacio', descripcion: 'Obispo y mártir, apóstol de Germania.' }],
+                '6-9': [{ nombre: 'San Efrén', descripcion: 'Diácono y Doctor de la Iglesia, poeta sirio.' }],
+                '6-11': [{ nombre: 'San Bernabé', descripcion: 'Apóstol, compañero de San Pablo.' }],
+                '6-13': [{ nombre: 'San Antonio de Padua', descripcion: 'Sacerdote franciscano y Doctor de la Iglesia, muy popular en el mundo católico.' }],
+                '6-21': [{ nombre: 'San Luis Gonzaga', descripcion: 'Religioso jesuita, patrono de la juventud.' }],
+                '6-22': [{ nombre: 'Santos Juan Fisher y Tomás Moro', descripcion: 'Mártires ingleses, ejecutados por Enrique VIII.' }],
+                '6-24': [{ nombre: 'Natividad de San Juan Bautista', descripcion: 'Nacimiento del precursor de Cristo.' }],
+                '6-27': [{ nombre: 'San Cirilo de Alejandría', descripcion: 'Obispo y Doctor de la Iglesia, defensor de la maternidad divina de María.' }],
+                '6-28': [{ nombre: 'San Ireneo de Lyon', descripcion: 'Obispo y mártir, gran teólogo del siglo II.' }],
+                '6-29': [{ nombre: 'Santos Pedro y Pablo', descripcion: 'Apóstoles, columnas de la Iglesia.' }],
+                '6-30': [{ nombre: 'Primeros Mártires de la Iglesia Romana', descripcion: 'Conmemoración de los cristianos martirizados por Nerón.' }],
+                
+                // Julio
+                '7-3': [{ nombre: 'Santo Tomás Apóstol', descripcion: 'Apóstol de Jesucristo, conocido por su incredulidad inicial.' }],
+                '7-4': [{ nombre: 'Santa Isabel de Portugal', descripcion: 'Reina, conocida por su caridad hacia los pobres.' }],
+                '7-5': [{ nombre: 'San Antonio María Zacarías', descripcion: 'Sacerdote, fundador de los Barnabitas.' }],
+                '7-6': [{ nombre: 'Santa María Goretti', descripcion: 'Virgen y mártir italiana, símbolo de pureza.' }],
+                '7-11': [{ nombre: 'San Benito de Nursia', descripcion: 'Abad, patriarca del monaquismo occidental, patrono de Europa.' }],
+                '7-13': [{ nombre: 'San Enrique', descripcion: 'Emperador del Sacro Imperio Romano Germánico.' }],
+                '7-14': [{ nombre: 'San Camilo de Lelis', descripcion: 'Fundador de los Ministros de los Enfermos, patrono de hospitales.' }],
+                '7-15': [{ nombre: 'San Buenaventura', descripcion: 'Obispo franciscano y Doctor de la Iglesia.' }],
+                '7-16': [{ nombre: 'Nuestra Señora del Carmen', descripcion: 'Advocación mariana muy popular, patrona de los Carmelitas.' }],
+                '7-22': [{ nombre: 'Santa María Magdalena', descripcion: 'Discípula de Jesús, primera testigo de la Resurrección.' }],
+                '7-23': [{ nombre: 'Santa Brígida de Suecia', descripcion: 'Religiosa, fundadora de las Brigidinas, patrona de Europa.' }],
+                '7-25': [{ nombre: 'Santiago Apóstol', descripcion: 'Apóstol, patrono de España, sepultado en Santiago de Compostela.' }],
+                '7-26': [{ nombre: 'Santos Joaquín y Ana', descripcion: 'Padres de la Virgen María, abuelos de Jesús.' }],
+                '7-29': [{ nombre: 'Santa Marta', descripcion: 'Hermana de Lázaro y María, amiga de Jesús.' }],
+                '7-30': [{ nombre: 'San Pedro Crisólogo', descripcion: 'Obispo de Rávena y Doctor de la Iglesia.' }],
+                '7-31': [{ nombre: 'San Ignacio de Loyola', descripcion: 'Fundador de la Compañía de Jesús (jesuitas).' }],
+                
+                // Agosto
+                '8-1': [{ nombre: 'San Alfonso María de Ligorio', descripcion: 'Obispo, fundador de los Redentoristas y Doctor de la Iglesia.' }],
+                '8-4': [{ nombre: 'San Juan María Vianney', descripcion: 'Cura de Ars, patrono de los sacerdotes.' }],
+                '8-5': [{ nombre: 'Dedicación de la Basílica de Santa María la Mayor', descripcion: 'Conmemoración de una de las basílicas más importantes de Roma.' }],
+                '8-6': [{ nombre: 'Transfiguración del Señor', descripcion: 'Fiesta de la transfiguración de Jesús en el monte Tabor.' }],
+                '8-7': [{ nombre: 'San Cayetano', descripcion: 'Sacerdote, fundador de los Teatinos.' }],
+                '8-8': [{ nombre: 'Santo Domingo de Guzmán', descripcion: 'Sacerdote, fundador de la Orden de Predicadores (Dominicos).' }],
+                '8-10': [{ nombre: 'San Lorenzo', descripcion: 'Diácono y mártir romano, uno de los santos más venerados.' }],
+                '8-11': [{ nombre: 'Santa Clara de Asís', descripcion: 'Virgen, fundadora de las Clarisas, seguidora de San Francisco.' }],
+                '8-13': [{ nombre: 'Santos Ponciano e Hipólito', descripcion: 'Papa y sacerdote, mártires.' }],
+                '8-14': [{ nombre: 'San Maximiliano María Kolbe', descripcion: 'Sacerdote franciscano, mártir en Auschwitz.' }],
+                '8-15': [{ nombre: 'Asunción de la Virgen María', descripcion: 'Solemnidad de la asunción de María al cielo en cuerpo y alma.' }],
+                '8-19': [{ nombre: 'San Juan Eudes', descripcion: 'Sacerdote, fundador de los Eudistas.' }],
+                '8-20': [{ nombre: 'San Bernardo de Claraval', descripcion: 'Abad cisterciense y Doctor de la Iglesia.' }],
+                '8-21': [{ nombre: 'San Pío X', descripcion: 'Papa, promotor de la comunión frecuente.' }],
+                '8-22': [{ nombre: 'Santa María Reina', descripcion: 'Memoria de María como Reina del Cielo.' }],
+                '8-23': [{ nombre: 'Santa Rosa de Lima', descripcion: 'Virgen, primera santa de América.' }],
+                '8-24': [{ nombre: 'San Bartolomé Apóstol', descripcion: 'Apóstol de Jesucristo.' }],
+                '8-25': [{ nombre: 'San José de Calasanz', descripcion: 'Sacerdote, fundador de las Escuelas Pías.' }],
+                '8-27': [{ nombre: 'Santa Mónica', descripcion: 'Madre de San Agustín, modelo de madres cristianas.' }],
+                '8-28': [{ nombre: 'San Agustín de Hipona', descripcion: 'Obispo y Doctor de la Iglesia, uno de los más grandes Padres de la Iglesia.' }],
+                '8-29': [{ nombre: 'Martirio de San Juan Bautista', descripcion: 'Conmemoración de la decapitación del Bautista.' }],
+                
+                // Septiembre
+                '9-3': [{ nombre: 'San Gregorio Magno', descripcion: 'Papa y Doctor de la Iglesia, reformador de la liturgia.' }],
+                '9-8': [{ nombre: 'Natividad de la Virgen María', descripcion: 'Nacimiento de la Madre de Dios.' }],
+                '9-9': [{ nombre: 'San Pedro Claver', descripcion: 'Sacerdote jesuita, apóstol de los esclavos negros.' }],
+                '9-13': [{ nombre: 'San Juan Crisóstomo', descripcion: 'Obispo de Constantinopla y Doctor de la Iglesia.' }],
+                '9-14': [{ nombre: 'Exaltación de la Santa Cruz', descripcion: 'Fiesta de la Santa Cruz de Cristo.' }],
+                '9-15': [{ nombre: 'Nuestra Señora de los Dolores', descripcion: 'Memoria de los dolores de María.' }],
+                '9-16': [{ nombre: 'Santos Cornelio y Cipriano', descripcion: 'Papa y obispo, mártires del siglo III.' }],
+                '9-17': [{ nombre: 'San Roberto Belarmino', descripcion: 'Obispo, cardenal y Doctor de la Iglesia.' }],
+                '9-19': [{ nombre: 'San Jenaro', descripcion: 'Obispo de Benevento y mártir, conocido por el milagro de su sangre.' }],
+                '9-20': [{ nombre: 'Santos Andrés Kim y Pablo Chong y compañeros', descripcion: 'Mártires de Corea.' }],
+                '9-21': [{ nombre: 'San Mateo Evangelista', descripcion: 'Apóstol y evangelista, autor del primer Evangelio.' }],
+                '9-23': [{ nombre: 'San Pío de Pietrelcina', descripcion: 'Sacerdote capuchino con los estigmas de Cristo.' }],
+                '9-26': [{ nombre: 'Santos Cosme y Damián', descripcion: 'Médicos y mártires, patronos de los médicos.' }],
+                '9-27': [{ nombre: 'San Vicente de Paúl', descripcion: 'Sacerdote, fundador de las Hijas de la Caridad.' }],
+                '9-28': [{ nombre: 'San Wenceslao', descripcion: 'Mártir, patrono de la República Checa.' }],
+                '9-29': [{ nombre: 'Santos Arcángeles Miguel, Gabriel y Rafael', descripcion: 'Los tres arcángeles mencionados en la Biblia.' }],
+                '9-30': [{ nombre: 'San Jerónimo', descripcion: 'Sacerdote y Doctor de la Iglesia, traductor de la Biblia al latín (Vulgata).' }],
+                
+                // Octubre
+                '10-1': [{ nombre: 'Santa Teresita del Niño Jesús', descripcion: 'Virgen carmelita y Doctora de la Iglesia, patrona de las misiones.' }],
+                '10-2': [{ nombre: 'Santos Ángeles Custodios', descripcion: 'Memoria de los ángeles guardianes.' }],
+                '10-4': [{ nombre: 'San Francisco de Asís', descripcion: 'Fundador de los Franciscanos, patrono de los animales y la ecología.' }],
+                '10-6': [{ nombre: 'San Bruno', descripcion: 'Fundador de la Orden de los Cartujos.' }],
+                '10-7': [{ nombre: 'Nuestra Señora del Rosario', descripcion: 'Memoria de la Virgen del Rosario.' }],
+                '10-9': [{ nombre: 'San Dionisio y compañeros', descripcion: 'Obispo de París y mártires.' }],
+                '10-11': [{ nombre: 'San Juan XXIII', descripcion: 'Papa del Concilio Vaticano II, conocido como el "Papa bueno".' }],
+                '10-14': [{ nombre: 'San Calixto I', descripcion: 'Papa y mártir del siglo III.' }],
+                '10-15': [{ nombre: 'Santa Teresa de Jesús', descripcion: 'Virgen carmelita, reformadora y Doctora de la Iglesia.' }],
+                '10-16': [{ nombre: 'Santa Margarita María de Alacoque', descripcion: 'Virgen, promotora de la devoción al Sagrado Corazón.' }],
+                '10-17': [{ nombre: 'San Ignacio de Antioquía', descripcion: 'Obispo y mártir, discípulo de San Juan Apóstol.' }],
+                '10-18': [{ nombre: 'San Lucas Evangelista', descripcion: 'Evangelista y médico, autor del tercer Evangelio y los Hechos.' }],
+                '10-19': [{ nombre: 'Santos Juan de Brébeuf e Isaac Jogues y compañeros', descripcion: 'Mártires jesuitas de Norteamérica.' }],
+                '10-22': [{ nombre: 'San Juan Pablo II', descripcion: 'Papa polaco, uno de los más influyentes del siglo XX.' }],
+                '10-23': [{ nombre: 'San Juan de Capistrano', descripcion: 'Sacerdote franciscano, predicador.' }],
+                '10-24': [{ nombre: 'San Antonio María Claret', descripcion: 'Obispo, fundador de los Claretianos.' }],
+                '10-28': [{ nombre: 'Santos Simón y Judas Tadeo', descripcion: 'Apóstoles de Jesucristo.' }],
+                
+                // Noviembre
+                '11-1': [{ nombre: 'Todos los Santos', descripcion: 'Solemnidad de todos los santos del cielo.' }],
+                '11-2': [{ nombre: 'Fieles Difuntos', descripcion: 'Conmemoración de todos los fieles difuntos.' }],
+                '11-3': [{ nombre: 'San Martín de Porres', descripcion: 'Religioso dominico peruano, patrono de la justicia social.' }],
+                '11-4': [{ nombre: 'San Carlos Borromeo', descripcion: 'Cardenal arzobispo de Milán, destacado en la Reforma Católica.' }],
+                '11-9': [{ nombre: 'Dedicación de la Basílica de Letrán', descripcion: 'Catedral del Papa como obispo de Roma.' }],
+                '11-10': [{ nombre: 'San León Magno', descripcion: 'Papa y Doctor de la Iglesia, defensor de la fe.' }],
+                '11-11': [{ nombre: 'San Martín de Tours', descripcion: 'Obispo, conocido por compartir su capa con un pobre.' }],
+                '11-12': [{ nombre: 'San Josafat', descripcion: 'Obispo y mártir, promotor de la unidad de la Iglesia.' }],
+                '11-15': [{ nombre: 'San Alberto Magno', descripcion: 'Obispo y Doctor de la Iglesia, maestro de Santo Tomás de Aquino.' }],
+                '11-16': [{ nombre: 'Santa Margarita de Escocia', descripcion: 'Reina de Escocia, conocida por su caridad.' }],
+                '11-17': [{ nombre: 'Santa Isabel de Hungría', descripcion: 'Princesa y terciaria franciscana, dedicada a los pobres.' }],
+                '11-21': [{ nombre: 'Presentación de la Virgen María', descripcion: 'Memoria de la presentación de María en el Templo.' }],
+                '11-22': [{ nombre: 'Santa Cecilia', descripcion: 'Virgen y mártir romana, patrona de los músicos.' }],
+                '11-23': [{ nombre: 'San Clemente I', descripcion: 'Papa y mártir del siglo I.' }],
+                '11-24': [{ nombre: 'Santos Andrés Dung-Lac y compañeros', descripcion: 'Mártires de Vietnam.' }],
+                '11-30': [{ nombre: 'San Andrés Apóstol', descripcion: 'Apóstol, hermano de San Pedro, patrono de Escocia y Rusia.' }],
+                
+                // Diciembre
+                '12-3': [{ nombre: 'San Francisco Javier', descripcion: 'Sacerdote jesuita, gran misionero en Asia, patrono de las misiones.' }],
+                '12-4': [{ nombre: 'San Juan Damasceno', descripcion: 'Sacerdote y Doctor de la Iglesia, defensor de las imágenes sagradas.' }],
+                '12-6': [{ nombre: 'San Nicolás de Bari', descripcion: 'Obispo de Mira, origen de la tradición de Santa Claus.' }],
+                '12-7': [{ nombre: 'San Ambrosio', descripcion: 'Obispo de Milán y Doctor de la Iglesia.' }],
+                '12-8': [{ nombre: 'Inmaculada Concepción', descripcion: 'Solemnidad de la Inmaculada Concepción de María.' }],
+                '12-9': [{ nombre: 'San Juan Diego', descripcion: 'Vidente de la Virgen de Guadalupe en México.' }],
+                '12-11': [{ nombre: 'San Dámaso I', descripcion: 'Papa que encargó a San Jerónimo la Vulgata.' }],
+                '12-12': [{ nombre: 'Nuestra Señora de Guadalupe', descripcion: 'Aparición de la Virgen María en México, patrona de América.' }],
+                '12-13': [{ nombre: 'Santa Lucía', descripcion: 'Virgen y mártir de Siracusa, patrona de la vista.' }],
+                '12-14': [{ nombre: 'San Juan de la Cruz', descripcion: 'Sacerdote carmelita y Doctor de la Iglesia, poeta místico.' }],
+                '12-21': [{ nombre: 'San Pedro Canisio', descripcion: 'Sacerdote jesuita y Doctor de la Iglesia.' }],
+                '12-23': [{ nombre: 'San Juan de Kety', descripcion: 'Sacerdote y profesor polaco.' }],
+                '12-25': [{ nombre: 'Natividad del Señor', descripcion: 'Solemnidad del nacimiento de Jesucristo.' }],
+                '12-26': [{ nombre: 'San Esteban', descripcion: 'Primer mártir cristiano, diácono.' }],
+                '12-27': [{ nombre: 'San Juan Evangelista', descripcion: 'Apóstol y evangelista, el discípulo amado.' }],
+                '12-28': [{ nombre: 'Santos Inocentes', descripcion: 'Niños asesinados por Herodes en Belén.' }],
+                '12-29': [{ nombre: 'Santo Tomás Becket', descripcion: 'Arzobispo de Canterbury y mártir.' }],
+                '12-31': [{ nombre: 'San Silvestre I', descripcion: 'Papa del siglo IV.' }]
+            };
+            
+            const key = `${month}-${day}`;
+            const saints = saintsCalendar[key];
+            
+            if (saints) {
+                displayMultipleSaints(saints);
+            } else {
+                // Si no hay santo específico, mostrar mensaje genérico
+                displayMultipleSaints([{
+                    nombre: 'Santo del Día',
+                    descripcion: 'No hay información específica disponible para este día. Consulte el calendario litúrgico oficial para más detalles.',
+                    url: 'https://www.vaticannews.va/es/santos.html'
+                }]);
+            }
+        }
+
+        // Inicializar la página
+        async function init() {
+            await loadSantosCSV();
+            initializeDatePickers();
+            displayDate();
+            getSaintOfTheDay();
+        }
+        
+        // Ejecutar cuando se cargue la página
+        init();
+    </script>
+</body>
+</html>
