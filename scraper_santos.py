@@ -381,9 +381,6 @@ class SantosCalendarioScraper:
         # URL Wikipedia
         url_wikipedia = info_wiki['url_wikipedia'] if info_wiki else ""
 
-        # URL Vatican News (mantener el esquema previo)
-        url_vatican = f"https://www.vaticannews.va/es/santos/{mes:02d}/{dia:02d}.html"
-
         # Calcular prioridad
         prioridad = self._calcular_prioridad(nombre_santo, descripcion)
 
@@ -395,7 +392,6 @@ class SantosCalendarioScraper:
             'descripcion': descripcion,
             'imagen': imagen_descargada,
             'url_wikipedia': url_wikipedia,
-            'url_vatican': url_vatican,
             'oracion': oracion
         }
 
@@ -405,62 +401,114 @@ class SantosCalendarioScraper:
         return resultado
     
     def buscar_en_wikipedia(self, nombre_santo):
-        """Busca información del santo en Wikipedia en español"""
-        # Limpiar el nombre para la búsqueda
-        nombre_busqueda = re.sub(r'^(San|Santa|Santo|Beato|Beata|Bienaventurada?)\s+', '', nombre_santo, flags=re.IGNORECASE)
-        
+        """Busca información del santo en Wikipedia en español con mejor precisión"""
         # API de Wikipedia en español
         url_api = "https://es.wikipedia.org/w/api.php"
         
-        parametros_busqueda = {
-            'action': 'query',
-            'format': 'json',
-            'list': 'search',
-            'srsearch': nombre_busqueda + ' santo',
-            'srlimit': 1
-        }
+        # Intentar diferentes estrategias de búsqueda en orden de prioridad
+        estrategias = [
+            # 1. Búsqueda con nombre completo + "(santo)" o "(beato)"
+            nombre_santo + " (santo)",
+            nombre_santo + " (beato)",
+            nombre_santo + " (beata)",
+            # 2. Búsqueda con nombre completo solo
+            nombre_santo,
+            # 3. Búsqueda con nombre sin prefijo + contexto religioso
+            re.sub(r'^(San|Santa|Santo|Beato|Beata|Bienaventurada?)\s+', '', nombre_santo, flags=re.IGNORECASE) + " santo católico"
+        ]
         
-        try:
-            response = self.session.get(url_api, params=parametros_busqueda, timeout=8)
-            response.raise_for_status()
-            resultados = response.json()
-            
-            if resultados['query']['search']:
-                titulo_pagina = resultados['query']['search'][0]['title']
-                
-                # Obtener el extracto y la imagen
-                parametros_pagina = {
+        for estrategia in estrategias:
+            try:
+                parametros_busqueda = {
                     'action': 'query',
                     'format': 'json',
-                    'prop': 'extracts|pageimages',
-                    'exintro': True,
-                    'explaintext': True,
-                    'titles': titulo_pagina,
-                    'pithumbsize': 300
+                    'list': 'search',
+                    'srsearch': estrategia,
+                    'srlimit': 3  # Obtener top 3 resultados para verificar
                 }
                 
-                response = self.session.get(url_api, params=parametros_pagina, timeout=8)
+                response = self.session.get(url_api, params=parametros_busqueda, timeout=8)
                 response.raise_for_status()
-                datos = response.json()
+                resultados = response.json()
                 
-                pagina = next(iter(datos['query']['pages'].values()))
+                if not resultados['query']['search']:
+                    continue
                 
-                descripcion = pagina.get('extract', '')[:400]  # Limitar a 400 caracteres
-                url_wiki = f"https://es.wikipedia.org/wiki/{titulo_pagina.replace(' ', '_')}"
-                url_imagen = pagina.get('thumbnail', {}).get('source', '')
+                # Verificar los resultados y elegir el más relevante
+                for resultado in resultados['query']['search']:
+                    titulo_pagina = resultado['title']
+                    
+                    # Filtrar resultados claramente irrelevantes
+                    titulo_lower = titulo_pagina.lower()
+                    
+                    # Lista de palabras que indican que NO es una página de santo
+                    palabras_excluir = [
+                        'club', 'equipo', 'estadio', 'calle', 'avenida', 
+                        'ciudad', 'municipio', 'distrito', 'parroquia', 'iglesia',
+                        'catedral', 'basílica', 'convento', 'monasterio',
+                        'hospital', 'colegio', 'universidad', 'orden',
+                        'provincia', 'departamento', 'región'
+                    ]
+                    
+                    # Si el título contiene alguna palabra a excluir, saltar
+                    if any(palabra in titulo_lower for palabra in palabras_excluir):
+                        continue
+                    
+                    # Verificar que el título contenga referencias religiosas o al santo
+                    nombre_limpio = re.sub(r'^(San|Santa|Santo|Beato|Beata|Bienaventurada?)\s+', '', nombre_santo, flags=re.IGNORECASE).lower()
+                    
+                    # Si el nombre del santo no aparece en el título, probablemente no sea correcto
+                    if nombre_limpio not in titulo_lower:
+                        continue
+                    
+                    # Obtener el extracto y la imagen de esta página
+                    parametros_pagina = {
+                        'action': 'query',
+                        'format': 'json',
+                        'prop': 'extracts|pageimages|categories',
+                        'exintro': True,
+                        'explaintext': True,
+                        'titles': titulo_pagina,
+                        'pithumbsize': 300
+                    }
+                    
+                    response = self.session.get(url_api, params=parametros_pagina, timeout=8)
+                    response.raise_for_status()
+                    datos = response.json()
+                    
+                    pagina = next(iter(datos['query']['pages'].values()))
+                    
+                    # Verificar que la página tenga contenido
+                    if 'extract' not in pagina or not pagina['extract']:
+                        continue
+                    
+                    # Verificar que el contenido menciona términos religiosos
+                    extracto = pagina.get('extract', '').lower()
+                    terminos_religiosos = ['santo', 'santa', 'beato', 'beata', 'mártir', 'iglesia', 'católico', 'cristiano', 'fe', 'religioso']
+                    
+                    if not any(termino in extracto for termino in terminos_religiosos):
+                        continue
+                    
+                    # Esta página parece correcta
+                    descripcion = pagina.get('extract', '')[:400]  # Limitar a 400 caracteres
+                    url_wiki = f"https://es.wikipedia.org/wiki/{titulo_pagina.replace(' ', '_')}"
+                    url_imagen = pagina.get('thumbnail', {}).get('source', '')
+                    
+                    print(f"  ✅ Wikipedia encontrada: {titulo_pagina}")
+                    
+                    return {
+                        'descripcion': descripcion,
+                        'url_wikipedia': url_wiki,
+                        'url_imagen': url_imagen,
+                        'titulo_pagina': titulo_pagina
+                    }
                 
-                return {
-                    'descripcion': descripcion,
-                    'url_wikipedia': url_wiki,
-                    'url_imagen': url_imagen,
-                    'titulo_pagina': titulo_pagina
-                }
-            
-            return None
-            
-        except Exception as e:
-            print(f"  ⚠️ Error buscando en Wikipedia: {e}")
-            return None
+            except Exception as e:
+                print(f"  ⚠️ Error en estrategia '{estrategia}': {e}")
+                continue
+        
+        print(f"  ⚠️ No se encontró Wikipedia válida para: {nombre_santo}")
+        return None
     
     def extraer_oracion(self, titulo_pagina):
         """Intenta extraer la oración del santo desde su página de Wikipedia"""
@@ -569,7 +617,7 @@ class SantosCalendarioScraper:
         archivo_existe = os.path.exists(self.archivo_csv)
         
         with open(self.archivo_csv, 'a' if archivo_existe else 'w', newline='', encoding='utf-8') as f:
-            campos = ['mes', 'dia', 'nombre', 'prioridad', 'descripcion', 'imagen', 'url_wikipedia', 'url_vatican', 'oracion']
+            campos = ['mes', 'dia', 'nombre', 'prioridad', 'descripcion', 'imagen', 'url_wikipedia', 'oracion']
             writer = csv.DictWriter(f, fieldnames=campos)
             
             # Solo escribir header si es archivo nuevo

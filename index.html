@@ -250,25 +250,6 @@
             box-shadow: 0 6px 20px rgba(118, 75, 162, 0.4);
         }
 
-        .vatican-link {
-            display: inline-block;
-            padding: 15px 30px;
-            background: #ffd700;
-            color: #333;
-            text-decoration: none;
-            border-radius: 50px;
-            font-size: 1.1rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
-            font-weight: bold;
-        }
-
-        .vatican-link:hover {
-            background: #ffed4e;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.6);
-        }
-
         .loading {
             font-size: 1.2rem;
             color: #667eea;
@@ -489,8 +470,7 @@
                             prioridad: parseInt(values[3]) || 25,
                             descripcion: values[4],
                             imagen: values[5],
-                            url_wikipedia: values[6],
-                            url_vatican: values[7]
+                            url_wikipedia: values[6]
                         });
                     }
                 }
@@ -632,10 +612,7 @@
             const day = selectedDate.getDate();
             
             // Buscar en los datos del CSV
-            let saintsForDay = santosData.filter(s => s.mes === month && s.dia === day);
-            
-            // Ordenar por prioridad (mayor primero)
-            saintsForDay.sort((a, b) => (b.prioridad || 25) - (a.prioridad || 25));
+            const saintsForDay = santosData.filter(s => s.mes === month && s.dia === day);
             
             if (saintsForDay.length > 0) {
                 displayMultipleSaints(saintsForDay);
@@ -646,8 +623,7 @@
                     prioridad: 25,
                     descripcion: 'No hay información disponible para este día. Puedes agregar los datos en el archivo santos.csv',
                     imagen: '',
-                    url_wikipedia: 'https://es.wikipedia.org',
-                    url_vatican: 'https://www.vaticannews.va/es/santos.html'
+                    url_wikipedia: 'https://es.wikipedia.org'
                 }]);
             }
         }
@@ -657,9 +633,61 @@
             const container = document.getElementById('saintsContainer');
             container.innerHTML = '';
             
+            console.log('Santos antes de ordenar:', saints.map(s => `${s.nombre} (${s.mes}/${s.dia}) - Prioridad: ${s.prioridad}, Imagen: ${s.imagen ? 'Sí' : 'No'}`));
+            
+            // Ordenar con jerarquía: Festividades > Santos > Beatos, y dentro de cada grupo primero los que tienen imagen
+            saints.sort((a, b) => {
+                // Verificar si tienen imagen
+                const aHasImage = a.imagen && a.imagen.trim() !== '';
+                const bHasImage = b.imagen && b.imagen.trim() !== '';
+                
+                // Determinar el tipo de santo
+                const aType = getSaintType(a.nombre, a.prioridad);
+                const bType = getSaintType(b.nombre, b.prioridad);
+                
+                // Orden de tipos: festividad(3) > santo(2) > beato(1)
+                if (aType !== bType) {
+                    return bType - aType; // Mayor tipo primero
+                }
+                
+                // Dentro del mismo tipo, los que tienen imagen van primero
+                if (aHasImage && !bHasImage) return -1;
+                if (!aHasImage && bHasImage) return 1;
+                
+                // Si ambos tienen o no tienen imagen, ordenar por prioridad
+                return (b.prioridad || 25) - (a.prioridad || 25);
+            });
+            
+            console.log('Santos después de ordenar:', saints.map(s => `${s.nombre} (${s.mes}/${s.dia}) - Tipo: ${getSaintType(s.nombre, s.prioridad)}, Prioridad: ${s.prioridad}, Imagen: ${s.imagen ? 'Sí' : 'No'}`));
+            
             for (const saint of saints) {
                 await displaySaintCard(saint, container);
             }
+        }
+
+        // Función auxiliar para determinar el tipo de santo
+        function getSaintType(nombre, prioridad) {
+            const nombreLower = nombre.toLowerCase();
+            
+            // Prioridad 100 = Festividad
+            if (prioridad === 100) return 3;
+            
+            // San, Santa, Santo = tipo 2
+            if (nombreLower.startsWith('san ') || 
+                nombreLower.startsWith('santa ') || 
+                nombreLower.startsWith('santo ')) {
+                return 2;
+            }
+            
+            // Beato, Beata, Venerable = tipo 1
+            if (nombreLower.startsWith('beato ') || 
+                nombreLower.startsWith('beata ') ||
+                nombreLower.startsWith('venerable ')) {
+                return 1;
+            }
+            
+            // Por defecto, tipo 1
+            return 1;
         }
 
         // Crear una tarjeta para cada santo
@@ -670,15 +698,22 @@
             
             const saintName = saint.nombre || saint.name || 'Santo del Día';
             const prioridad = saint.prioridad || 25;
+            const nombreLower = saintName.toLowerCase();
             
             // Badge de prioridad para santos importantes
             let priorityBadge = '';
-            if (prioridad >= 90) {
-                priorityBadge = '<span class="priority-badge">⭐ Santo Patrono</span>';
-            } else if (prioridad >= 85) {
+            
+            // Festividades (prioridad 100)
+            if (prioridad === 100) {
+                priorityBadge = '<span class="priority-badge">✨ Festividad</span>';
+            }
+            // Santos patronos argentinos (prioridad 90-95)
+            else if (prioridad >= 90 && prioridad < 100) {
+                priorityBadge = '<span class="priority-badge">⭐ Santo Patrono de Argentina</span>';
+            }
+            // Santos argentinos (prioridad 85-89)
+            else if (prioridad >= 85 && prioridad < 90) {
                 priorityBadge = '<span class="priority-badge">🇦🇷 Santo Argentino</span>';
-            } else if (prioridad === 100) {
-                priorityBadge = '<span class="priority-badge">✨ Fiesta Mayor</span>';
             }
             
             // Obtener imagen
@@ -698,7 +733,6 @@
             }
             
             const wikiUrl = saint.url_wikipedia || saint.url || saint.wiki_url || `https://es.wikipedia.org/wiki/${encodeURIComponent(saintName)}`;
-            const vaticanUrl = saint.url_vatican || `https://www.vaticannews.va/es/santos.html`;
             
             card.innerHTML = `
                 ${imageHTML}
@@ -706,7 +740,6 @@
                 <div class="saint-description">${description}</div>
                 <div class="links-container">
                     <a href="${wikiUrl}" class="wiki-link" target="_blank">📖 Ver en Wikipedia</a>
-                    <a href="${vaticanUrl}" class="vatican-link" target="_blank">✝️ Vatican News</a>
                 </div>
             `;
             
@@ -798,24 +831,48 @@
             displayDate();
             await getSaintOfTheDay();
             
-            // Hacer scroll al santo específico después de un pequeño delay
+            // Esperar un poco más para asegurar que el DOM esté listo
             setTimeout(() => {
-                const saintId = `saint-${saint.nombre.replace(/\s+/g, '-').toLowerCase()}`;
-                const saintCard = document.getElementById(saintId);
+                scrollToSaint(saint.nombre);
+            }, 500);
+        }
+
+        // Función separada para hacer scroll al santo
+        function scrollToSaint(nombreSanto) {
+            const saintId = `saint-${nombreSanto.replace(/\s+/g, '-').toLowerCase()}`;
+            const saintCard = document.getElementById(saintId);
+            
+            console.log('🔍 Buscando santo:', nombreSanto);
+            console.log('📍 ID generado:', saintId);
+            console.log('✅ Elemento encontrado:', saintCard ? 'Sí' : 'No');
+            
+            if (saintCard) {
+                // Calcular offset para evitar que quede oculto bajo los controles fijos
+                const offset = window.matchMedia('(orientation: landscape)').matches ? 200 : 100;
+                const elementPosition = saintCard.getBoundingClientRect().top + window.pageYOffset;
+                const offsetPosition = elementPosition - offset;
                 
-                if (saintCard) {
-                    saintCard.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'center' 
-                    });
-                    
-                    // Destacar el santo brevemente
-                    saintCard.style.boxShadow = '0 0 20px rgba(118, 75, 162, 0.6)';
-                    setTimeout(() => {
-                        saintCard.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.1)';
-                    }, 2000);
-                }
-            }, 300);
+                console.log('📏 Posición del elemento:', elementPosition);
+                console.log('🎯 Scroll hacia:', offsetPosition);
+                
+                window.scrollTo({
+                    top: offsetPosition,
+                    behavior: 'smooth'
+                });
+                
+                // Destacar el santo brevemente
+                saintCard.style.transition = 'box-shadow 0.3s ease';
+                saintCard.style.boxShadow = '0 0 25px rgba(118, 75, 162, 0.8)';
+                
+                setTimeout(() => {
+                    saintCard.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.1)';
+                }, 2500);
+            } else {
+                console.warn(`❌ No se encontró el santo: ${nombreSanto} (ID: ${saintId})`);
+                // Listar todos los IDs disponibles para debug
+                const allCards = document.querySelectorAll('.saint-card');
+                console.log('📋 Tarjetas disponibles:', Array.from(allCards).map(c => c.id));
+            }
         }
         
         // Ejecutar cuando se cargue la página
