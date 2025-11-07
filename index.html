@@ -760,14 +760,19 @@
                 description = description.substring(0, 400) + '...';
             }
             
-            const wikiUrl = saint.url_wikipedia || saint.url || saint.wiki_url || `https://es.wikipedia.org/wiki/${encodeURIComponent(saintName)}`;
+            const wikiUrl = saint.url_wikipedia || saint.url || saint.wiki_url || '';
+            
+            // Solo mostrar botón de Wikipedia si hay URL válida
+            const wikiButton = wikiUrl ? 
+                `<a href="${wikiUrl}" class="wiki-link" target="_blank">📖 Ver en Wikipedia</a>` : 
+                '';
             
             card.innerHTML = `
                 ${imageHTML}
                 <div class="saint-name">${saintName}${priorityBadge}</div>
                 <div class="saint-description">${description}</div>
                 <div class="links-container">
-                    <a href="${wikiUrl}" class="wiki-link" target="_blank">📖 Ver en Wikipedia</a>
+                    ${wikiButton}
                 </div>
             `;
             

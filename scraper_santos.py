@@ -75,6 +75,13 @@ class SantosCalendarioScraper:
             'josé gabriel brochero': 90,
         }
         
+        # Santos especiales con alta prioridad (pero menos que fiestas mayores)
+        self.santos_especiales = {
+            'san josé': 80,  # Padre adoptivo de Jesús
+            'santa maría': 85,
+            'virgen maría': 85,
+        }
+        
         # Cargar santos existentes del CSV
         self._cargar_santos_existentes()
     
@@ -108,11 +115,23 @@ class SantosCalendarioScraper:
         3. Santos con 'argentina' en descripción: 70-80
         4. Santos populares (beato/santo): 40-60
         5. Resto: 20-30
+        
+        IMPORTANTE: Primero verificar si es beato/venerable para evitar 
+        que sean clasificados como festividades por su nombre.
         """
         nombre_lower = nombre.lower()
         desc_lower = descripcion.lower() if descripcion else ""
         
-        # 1. Fiestas mayores
+        # PRIMERO: Verificar si es beato/venerable/siervo de Dios
+        # Esto previene que "Beato X de San José" sea clasificado como festividad
+        if nombre_lower.startswith('beato ') or nombre_lower.startswith('beata '):
+            return 40
+        elif nombre_lower.startswith('venerable '):
+            return 35
+        elif 'siervo de dios' in nombre_lower or 'sierva de dios' in nombre_lower:
+            return 30
+        
+        # 1. Fiestas mayores (solo si NO es beato/venerable)
         for fiesta, prioridad in self.fiestas_mayores.items():
             if fiesta in nombre_lower:
                 return prioridad
@@ -122,17 +141,19 @@ class SantosCalendarioScraper:
             if santo in nombre_lower:
                 return prioridad
         
+        # 2.5 Santos especiales importantes
+        for santo, prioridad in self.santos_especiales.items():
+            # Verificar que sea exactamente ese santo, no parte de otro nombre
+            if santo == nombre_lower or nombre_lower == santo:
+                return prioridad
+        
         # 3. Referencias a Argentina en descripción
         if 'argentina' in desc_lower or 'argentino' in desc_lower:
             return 75
         
-        # 4. Popularidad por título
-        if 'san ' in nombre_lower or 'santa ' in nombre_lower:
+        # 4. Popularidad por título (santos generales)
+        if 'san ' in nombre_lower or 'santa ' in nombre_lower or 'santo ' in nombre_lower:
             return 50
-        elif 'beato' in nombre_lower or 'beata' in nombre_lower:
-            return 40
-        elif 'venerable' in nombre_lower:
-            return 35
         
         # 5. Default
         return 25
@@ -372,11 +393,19 @@ class SantosCalendarioScraper:
         if info_wiki:
             oracion = self.extraer_oracion(info_wiki['titulo_pagina'])
 
-        # Descargar imagen
+        # Buscar y descargar imagen desde Google Images
         nombre_archivo_imagen = self.limpiar_nombre_archivo(nombre_santo)
         imagen_descargada = ""
-        if info_wiki and info_wiki.get('url_imagen'):
-            imagen_descargada = self.descargar_imagen(info_wiki['url_imagen'], nombre_archivo_imagen)
+        
+        # Intentar obtener imagen de Google
+        url_imagen_google = self.buscar_imagen_google(nombre_santo)
+        if url_imagen_google:
+            imagen_descargada = self.descargar_imagen(url_imagen_google, nombre_archivo_imagen)
+        else:
+            # Fallback: intentar con la imagen de Wikipedia si existe
+            if info_wiki and info_wiki.get('url_imagen'):
+                print(f"  ℹ️  Usando imagen de Wikipedia como fallback")
+                imagen_descargada = self.descargar_imagen(info_wiki['url_imagen'], nombre_archivo_imagen)
 
         # URL Wikipedia
         url_wikipedia = info_wiki['url_wikipedia'] if info_wiki else ""
@@ -400,21 +429,73 @@ class SantosCalendarioScraper:
         time.sleep(0.5)
         return resultado
     
+    def buscar_imagen_google(self, nombre_santo):
+        """
+        Busca la primera imagen del santo en Google Images
+        Retorna la URL de la primera imagen encontrada
+        """
+        try:
+            # Construir la URL de búsqueda de Google Images
+            query = nombre_santo.replace(' ', '+')
+            url_busqueda = f"https://www.google.com/search?q={query}&tbm=isch"
+            
+            # Headers para simular navegador
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+            }
+            
+            response = requests.get(url_busqueda, headers=headers, timeout=10)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Google Images usa diferentes selectores, probar varios métodos
+            # Método 1: Buscar en los divs de imágenes
+            imagenes = soup.find_all('img')
+            
+            for img in imagenes[1:]:  # Saltar la primera (suele ser el logo de Google)
+                src = img.get('src') or img.get('data-src')
+                if src and src.startswith('http') and 'gstatic' not in src:
+                    print(f"  ✅ Imagen encontrada en Google: {src[:80]}...")
+                    return src
+            
+            # Método 2: Buscar en tags <script> que contienen JSON con URLs
+            scripts = soup.find_all('script')
+            for script in scripts:
+                if script.string and 'https://' in script.string:
+                    # Buscar URLs de imágenes en el script
+                    urls = re.findall(r'https://[^"\']*\.(?:jpg|jpeg|png|gif)', script.string)
+                    if urls:
+                        # Filtrar URLs que parecen ser de imágenes reales
+                        for url in urls:
+                            if 'encrypted' not in url and 'logo' not in url.lower():
+                                print(f"  ✅ Imagen encontrada en Google (script): {url[:80]}...")
+                                return url
+            
+            print(f"  ⚠️ No se encontró imagen en Google para: {nombre_santo}")
+            return None
+            
+        except Exception as e:
+            print(f"  ⚠️ Error buscando imagen en Google: {e}")
+            return None
+    
     def buscar_en_wikipedia(self, nombre_santo):
-        """Busca información del santo en Wikipedia en español con mejor precisión"""
+        """Busca información del santo en Wikipedia en español usando el nombre completo"""
         # API de Wikipedia en español
         url_api = "https://es.wikipedia.org/w/api.php"
         
-        # Intentar diferentes estrategias de búsqueda en orden de prioridad
+        # Intentar diferentes estrategias de búsqueda usando siempre el nombre completo
         estrategias = [
-            # 1. Búsqueda con nombre completo + "(santo)" o "(beato)"
-            nombre_santo + " (santo)",
-            nombre_santo + " (beato)",
-            nombre_santo + " (beata)",
-            # 2. Búsqueda con nombre completo solo
+            # 1. Búsqueda con nombre completo exacto (incluye San/Santa/Beato/etc)
             nombre_santo,
-            # 3. Búsqueda con nombre sin prefijo + contexto religioso
-            re.sub(r'^(San|Santa|Santo|Beato|Beata|Bienaventurada?)\s+', '', nombre_santo, flags=re.IGNORECASE) + " santo católico"
+            # 2. Búsqueda con nombre completo + "(santo)" para desambiguar
+            nombre_santo + " (santo)",
+            # 3. Búsqueda con nombre completo + "(beato)"
+            nombre_santo + " (beato)",
+            # 4. Búsqueda con nombre completo + "(santa)"
+            nombre_santo + " (santa)",
         ]
         
         for estrategia in estrategias:
@@ -454,11 +535,15 @@ class SantosCalendarioScraper:
                     if any(palabra in titulo_lower for palabra in palabras_excluir):
                         continue
                     
-                    # Verificar que el título contenga referencias religiosas o al santo
-                    nombre_limpio = re.sub(r'^(San|Santa|Santo|Beato|Beata|Bienaventurada?)\s+', '', nombre_santo, flags=re.IGNORECASE).lower()
+                    # Verificar que el título tenga alguna relación con el nombre buscado
+                    # Extraer palabras clave del nombre del santo (nombre sin prefijos comunes)
+                    nombre_limpio = re.sub(r'^(San|Santa|Santo|Beato|Beata|Bienaventurada?|Nuestra|Señora|Madre)\s+', '', nombre_santo, flags=re.IGNORECASE).lower()
                     
-                    # Si el nombre del santo no aparece en el título, probablemente no sea correcto
-                    if nombre_limpio not in titulo_lower:
+                    # Obtener las primeras 2-3 palabras significativas del nombre
+                    palabras_nombre = [p for p in nombre_limpio.split() if len(p) > 2][:3]
+                    
+                    # Verificar que al menos una palabra del nombre esté en el título
+                    if not any(palabra in titulo_lower for palabra in palabras_nombre):
                         continue
                     
                     # Obtener el extracto y la imagen de esta página
