@@ -1,0 +1,42 @@
+name: Actualizar Evangelio del Día
+
+on:
+  schedule:
+    # Ejecutar diariamente a las 6:00 AM UTC (7:00 AM CET)
+    - cron: '0 6 * * *'
+  workflow_dispatch: # Permite ejecución manual desde GitHub
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout código
+      uses: actions/checkout@v3
+      
+    - name: Configurar Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Instalar dependencias
+      run: |
+        pip install requests beautifulsoup4
+        
+    - name: Actualizar evangelio del día
+      run: |
+        python3 scraper_evangelio.py
+        
+    - name: Verificar si hay cambios
+      id: verify_diff
+      run: |
+        git diff --quiet evangelio_hoy.json || echo "changed=true" >> $GITHUB_OUTPUT
+        
+    - name: Commit y Push si hay cambios
+      if: steps.verify_diff.outputs.changed == 'true'
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add evangelio_hoy.json
+        git commit -m "🔄 Actualizar evangelio del día [$(date +'%Y-%m-%d')]"
+        git push

@@ -8,6 +8,15 @@ Este script extrae información de todos los santos del año desde
 calendariodesantos.com y Wikipedia, generando un archivo CSV completo
 con imágenes descargadas localmente.
 
+TOGGLE DE IMÁGENES:
+-------------------
+Por defecto, la descarga de imágenes está DESACTIVADA.
+
+Para ACTIVAR la descarga de imágenes, cambia la línea en el menú:
+    scraper = SantosCalendarioScraper()
+por:
+    scraper = SantosCalendarioScraper(descargar_imagenes=True)
+
 Autor: Sistema automatizado
 Fecha: Noviembre 2025
 """
@@ -22,7 +31,16 @@ from datetime import datetime
 import sys
 
 class SantosCalendarioScraper:
-    def __init__(self):
+    def __init__(self, descargar_imagenes=False):
+        """
+        Inicializa el scraper
+        
+        Args:
+            descargar_imagenes (bool): Si True, descarga imágenes desde Google.
+                                       Si False, salta la descarga de imágenes.
+                                       Default: False (desactivado por defecto)
+        """
+        self.descargar_imagenes = descargar_imagenes
         self.directorio_imagenes = "images"
         self.archivo_csv = "santos.csv"
         self.pagina_cache = None
@@ -397,15 +415,19 @@ class SantosCalendarioScraper:
         nombre_archivo_imagen = self.limpiar_nombre_archivo(nombre_santo)
         imagen_descargada = ""
         
-        # Intentar obtener imagen de Google
-        url_imagen_google = self.buscar_imagen_google(nombre_santo)
-        if url_imagen_google:
-            imagen_descargada = self.descargar_imagen(url_imagen_google, nombre_archivo_imagen)
+        # Toggle: Solo descargar imágenes si está activado
+        if self.descargar_imagenes:
+            # Intentar obtener imagen de Google
+            url_imagen_google = self.buscar_imagen_google(nombre_santo)
+            if url_imagen_google:
+                imagen_descargada = self.descargar_imagen(url_imagen_google, nombre_archivo_imagen)
+            else:
+                # Fallback: intentar con la imagen de Wikipedia si existe
+                if info_wiki and info_wiki.get('url_imagen'):
+                    print(f"  ℹ️  Usando imagen de Wikipedia como fallback")
+                    imagen_descargada = self.descargar_imagen(info_wiki['url_imagen'], nombre_archivo_imagen)
         else:
-            # Fallback: intentar con la imagen de Wikipedia si existe
-            if info_wiki and info_wiki.get('url_imagen'):
-                print(f"  ℹ️  Usando imagen de Wikipedia como fallback")
-                imagen_descargada = self.descargar_imagen(info_wiki['url_imagen'], nombre_archivo_imagen)
+            print(f"  ⏭️  Descarga de imágenes desactivada")
 
         # URL Wikipedia
         url_wikipedia = info_wiki['url_wikipedia'] if info_wiki else ""

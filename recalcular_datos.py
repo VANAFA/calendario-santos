@@ -12,10 +12,16 @@ import os
 from scraper_santos import SantosCalendarioScraper
 import time
 
-def recalcular_todos_los_datos():
-    """Recalcula prioridades, imágenes y Wikipedia para todos los santos en el CSV"""
+def recalcular_todos_los_datos(descargar_imagenes=False):
+    """
+    Recalcula prioridades, imágenes y Wikipedia para todos los santos en el CSV
     
-    scraper = SantosCalendarioScraper()
+    Args:
+        descargar_imagenes (bool): Si True, descarga nuevas imágenes desde Google.
+                                   Si False, solo actualiza prioridades y Wikipedia.
+    """
+    
+    scraper = SantosCalendarioScraper(descargar_imagenes=descargar_imagenes)
     
     print("=" * 70)
     print("🔄 RECALCULANDO DATOS DE TODOS LOS SANTOS")
@@ -60,12 +66,13 @@ def recalcular_todos_los_datos():
         
         # 2. Buscar nueva imagen en Google
         nombre_archivo = scraper.limpiar_nombre_archivo(nombre)
-        url_imagen_google = scraper.buscar_imagen_google(nombre)
-        if url_imagen_google:
-            imagen_descargada = scraper.descargar_imagen(url_imagen_google, nombre_archivo)
-            if imagen_descargada:
-                print(f"  🖼️  Nueva imagen: {imagen_descargada}")
-                santo['imagen'] = imagen_descargada
+        if descargar_imagenes:
+            url_imagen_google = scraper.buscar_imagen_google(nombre)
+            if url_imagen_google:
+                imagen_descargada = scraper.descargar_imagen(url_imagen_google, nombre_archivo)
+                if imagen_descargada:
+                    print(f"  🖼️  Nueva imagen: {imagen_descargada}")
+                    santo['imagen'] = imagen_descargada
         
         # 3. Buscar Wikipedia con nombre completo
         info_wiki = scraper.buscar_en_wikipedia(nombre)
@@ -112,12 +119,15 @@ def recalcular_todos_los_datos():
 
 if __name__ == "__main__":
     print("\n⚠️  ADVERTENCIA: Este proceso puede tomar varias horas")
-    print("⚠️  Se descargaran nuevas imágenes para todos los santos")
     print("⚠️  Se recalcularán todas las prioridades")
-    print("⚠️  Se actualizarán las URLs de Wikipedia\n")
+    print("⚠️  Se actualizarán las URLs de Wikipedia")
+    print("\n💡 TOGGLE DE IMÁGENES:")
+    print("   - Las imágenes están DESACTIVADAS por defecto")
+    print("   - Para activarlas, edita el código y usa: recalcular_todos_los_datos(descargar_imagenes=True)\n")
     
     respuesta = input("¿Deseas continuar? (s/n): ").strip().lower()
     if respuesta == 's':
-        recalcular_todos_los_datos()
+        # TOGGLE: Cambiar a True para descargar imágenes
+        recalcular_todos_los_datos(descargar_imagenes=False)
     else:
         print("\n❌ Proceso cancelado")

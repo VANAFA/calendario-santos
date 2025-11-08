@@ -84,4 +84,55 @@ La página `cita-biblica.html` carga automáticamente los datos desde `evangelio
 - Salmo Responsorial (si está disponible)
 - Evangelio del día (siempre presente)
 
-La página se actualiza automáticamente al cargar, sin necesidad de refrescar manualmente.
+### 🆕 Nuevas funcionalidades (Nov 2025):
+
+✅ **Detección automática de fecha**: La página verifica si el evangelio es del día actual
+✅ **Advertencia de actualización**: Muestra una alerta si los datos no son de hoy
+✅ **Cache-busting**: Evita que el navegador use datos viejos en cache
+✅ **Botón de actualización**: Guía al usuario si necesita actualizar los datos
+
+## ⏰ Actualización Automática Recomendada
+
+### GitHub Actions (RECOMENDADO para GitHub Pages)
+
+Crea el archivo `.github/workflows/update-evangelio.yml`:
+
+```yaml
+name: Actualizar Evangelio del Día
+
+on:
+  schedule:
+    # Ejecutar diariamente a las 6:00 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch: # Permite ejecución manual
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout código
+      uses: actions/checkout@v3
+      
+    - name: Configurar Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+        
+    - name: Instalar dependencias
+      run: |
+        pip install requests beautifulsoup4
+        
+    - name: Actualizar evangelio
+      run: |
+        python3 scraper_evangelio.py
+        
+    - name: Commit y Push si hay cambios
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add evangelio_hoy.json
+        git diff --quiet && git diff --staged --quiet || (git commit -m "🔄 Actualizar evangelio del día [$(date +'%Y-%m-%d')]" && git push)
+```
+
+Esto actualizará el evangelio automáticamente cada día cuando esté en GitHub Pages.

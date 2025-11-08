@@ -664,6 +664,7 @@
             console.log('Santos antes de ordenar:', saints.map(s => `${s.nombre} (${s.mes}/${s.dia}) - Prioridad: ${s.prioridad}, Imagen: ${s.imagen ? 'Sí' : 'No'}`));
             
             // Ordenar con jerarquía: Festividades > Santos > Beatos, y dentro de cada grupo primero los que tienen imagen
+            // Nota: La etiqueta "Festividad" se maneja manualmente, no se muestra automáticamente
             saints.sort((a, b) => {
                 // Verificar si tienen imagen
                 const aHasImage = a.imagen && a.imagen.trim() !== '';
@@ -731,12 +732,11 @@
             // Badge de prioridad para santos importantes
             let priorityBadge = '';
             
-            // Festividades (prioridad 100)
-            if (prioridad === 100) {
-                priorityBadge = '<span class="priority-badge">✨ Festividad</span>';
-            }
+            // Solo mostrar badges para santos argentinos
+            // La etiqueta de "Festividad" se maneja manualmente
+            
             // Santos patronos argentinos (prioridad 90-95)
-            else if (prioridad >= 90 && prioridad < 100) {
+            if (prioridad >= 90 && prioridad < 100) {
                 priorityBadge = '<span class="priority-badge">⭐ Santo Patrono de Argentina</span>';
             }
             // Santos argentinos (prioridad 85-89)
