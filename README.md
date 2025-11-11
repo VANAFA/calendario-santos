@@ -1,6 +1,107 @@
-# 🕊️ Calendario de Santos
+# Calendario de Santos �️✨
 
-Página web en español que muestra el santo del día con información detallada, imágenes y enlaces a recursos.
+Sitio web que muestra el santoral católico diario con información de santos desde Wikipedia y el evangelio del día.
+
+## 📁 Estructura del Proyecto
+
+```
+calendario-santos/
+├── main.py                    # Script principal de ejecución
+├── requirements.txt           # Dependencias Python
+├── README.md                  # Este archivo
+│
+├── scripts/                   # Scripts Python
+│   ├── scraper_santos_wikipedia.py    # Scraper de santos
+│   ├── scraper_evangelio.py           # Scraper de evangelio
+│   ├── migrar_csv_etiquetas.py        # Migración de CSV
+│   └── dedupe_santos.py               # Eliminar duplicados
+│
+├── web/                       # Archivos del sitio web
+│   ├── index.html            # Página principal
+│   ├── cita-biblica.html     # Página del evangelio
+│   └── images/               # Imágenes de santos
+│
+├── data/                      # Archivos de datos
+│   ├── santos.csv            # Base de datos de santos
+│   ├── evangelio_hoy.json    # Evangelio del día
+│   └── wikiproblematica.csv  # Días problemáticos
+│
+├── backups/                   # Backups automáticos
+│   └── *.backup, *.bak       # Copias de seguridad
+│
+└── docs/                      # Documentación
+    ├── ETIQUETAS_IMPLEMENTATION.md
+    ├── GUIA_ACTUALIZACION.md
+    └── ...
+```
+
+## 🚀 Instalación
+
+1. **Clonar el repositorio**
+```bash
+git clone https://github.com/VANAFA/calendario-santos.git
+cd calendario-santos
+```
+
+2. **Crear entorno virtual**
+```bash
+python3 -m venv venv
+source venv/bin/activate  # En Windows: venv\Scripts\activate
+```
+
+3. **Instalar dependencias**
+```bash
+pip install -r requirements.txt
+```
+
+## 🎯 Uso del Sistema
+
+### Modo Interactivo (Recomendado)
+
+Ejecuta el script principal:
+```bash
+python3 main.py
+```
+
+Verás un menú con opciones:
+1. Actualizar Evangelio del día
+2. Actualizar Santos (todo el año)
+3. Actualizar Santos (un día específico)
+4. Actualizar todo
+5. Salir
+
+### Modo Línea de Comandos
+
+```bash
+# Actualizar solo evangelio
+python3 main.py --evangelio
+
+# Actualizar todos los santos (toma varias horas)
+python3 main.py --santos
+
+# Actualizar un día específico
+python3 main.py --santos-dia 11 11  # 11 de noviembre
+
+# Ver ayuda
+python3 main.py --help
+```
+
+## 🏷️ Sistema de Etiquetas
+
+Los santos pueden tener etiquetas especiales que afectan su prioridad:
+
+| Etiqueta | Prioridad | Descripción |
+|----------|-----------|-------------|
+| `festividad` | 100 | Festividades litúrgicas importantes (Navidad, etc.) |
+| `santo_argentino` | 80 | Santos argentinos o patronos de Argentina |
+| `santo_scout` | 70 | Santos patronos del escultismo |
+| (sin etiqueta) | 50 | Santos normales |
+
+### Ejemplos de Santos con Etiquetas
+
+- **San Martín de Tours** (11/11): `santo_argentino` - Patrono de Buenos Aires
+- **San Jorge** (23/4): `santo_scout` - Patrono del escultismo mundial
+- **Navidad** (25/12): `festividad` - Solemnidad
 
 ## 🚀 Cómo usar
 

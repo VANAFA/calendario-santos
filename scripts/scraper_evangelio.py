@@ -21,6 +21,9 @@ class EvangelioScraper:
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
+        # Rutas relativas al directorio raíz del proyecto
+        import os
+        self.directorio_base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     
     def obtener_evangelio_del_dia(self):
         """
@@ -222,6 +225,11 @@ class EvangelioScraper:
     def guardar_json(self, datos, archivo='evangelio_hoy.json'):
         """Guarda los datos en un archivo JSON"""
         try:
+            import os
+            # Si no se especifica ruta completa, usar directorio data
+            if not os.path.isabs(archivo):
+                archivo = os.path.join(self.directorio_base, "data", archivo)
+            
             with open(archivo, 'w', encoding='utf-8') as f:
                 json.dump(datos, f, ensure_ascii=False, indent=2)
             print(f"💾 Datos guardados en {archivo}")

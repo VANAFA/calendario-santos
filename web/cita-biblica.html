@@ -84,7 +84,7 @@
             line-height: 1.8;
             color: #333;
             text-align: left;
-            white-space: pre-line;
+            white-space: normal;
         }
 
         .verse-reference {
@@ -271,35 +271,19 @@
                 // Mostrar contenido
                 document.getElementById('content').style.display = 'block';
                 
-                // Actualizar fecha con indicador si no es de hoy
+                // Actualizar fecha
                 const dateElement = document.getElementById('date');
-                if (esHoy) {
-                    dateElement.textContent = `Hoy, ${data.fecha}`;
-                    dateElement.style.color = '#764ba2';
-                } else {
-                    dateElement.innerHTML = `⚠️ ${data.fecha}<br><small style="color: #e74c3c; font-size: 0.85rem;">Este evangelio puede no ser del día actual. Se recomienda actualizar.</small>`;
-                    
-                    // Mostrar botón de actualización
-                    const updateButton = document.createElement('button');
-                    updateButton.className = 'reveal-button';
-                    updateButton.textContent = '🔄 Actualizar Evangelio';
-                    updateButton.style.marginTop = '20px';
-                    updateButton.onclick = async () => {
-                        updateButton.disabled = true;
-                        updateButton.textContent = '⏳ Actualizando...';
-                        alert('Para actualizar el evangelio, ejecuta:\n\ncd "Calendario de santos"\nsource venv/bin/activate\npython3 scraper_evangelio.py\n\nLuego recarga esta página.');
-                        updateButton.disabled = false;
-                        updateButton.textContent = '🔄 Actualizar Evangelio';
-                    };
-                    dateElement.parentElement.insertBefore(updateButton, dateElement.nextSibling);
-                }
+                dateElement.textContent = data.fecha;
+                dateElement.style.color = '#764ba2';
                 
                 // Cargar Primera Lectura
                 if (data.lectura) {
                     document.getElementById('lecturaSection').style.display = 'block';
                     document.getElementById('lecturaRef').textContent = 
                         `${data.lectura.referencia || ''} ${data.lectura.titulo || ''}`;
-                    document.getElementById('lecturaText').textContent = data.lectura.texto;
+                    // Normalizar espaciado: reemplazar múltiples saltos de línea por espacios
+                    const textoLectura = data.lectura.texto.replace(/\n\n+/g, ' ').replace(/\n/g, ' ');
+                    document.getElementById('lecturaText').textContent = textoLectura;
                 }
                 
                 // Cargar Salmo
@@ -307,7 +291,9 @@
                     document.getElementById('salmoSection').style.display = 'block';
                     document.getElementById('salmoRef').textContent = 
                         `${data.salmo.referencia || ''} ${data.salmo.titulo || ''}`;
-                    document.getElementById('salmoText').textContent = data.salmo.texto;
+                    // Normalizar espaciado
+                    const textoSalmo = data.salmo.texto.replace(/\n\n+/g, ' ').replace(/\n/g, ' ');
+                    document.getElementById('salmoText').textContent = textoSalmo;
                 }
                 
                 // Cargar Evangelio
@@ -315,7 +301,9 @@
                     document.getElementById('evangelioSection').style.display = 'block';
                     document.getElementById('evangelioRef').textContent = 
                         `${data.evangelio.titulo || ''} - ${data.evangelio.referencia || ''}`;
-                    document.getElementById('evangelioText').textContent = data.evangelio.texto;
+                    // Normalizar espaciado
+                    const textoEvangelio = data.evangelio.texto.replace(/\n\n+/g, ' ').replace(/\n/g, ' ');
+                    document.getElementById('evangelioText').textContent = textoEvangelio;
                 }
                 
             } catch (error) {

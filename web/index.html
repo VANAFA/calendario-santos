@@ -488,21 +488,36 @@
                 const lines = csvText.split('\n');
                 const headers = lines[0].split(',');
                 
+                // Leer todas las filas y deduplicar por clave mes-dia-nombre
+                const tempMap = {};
                 for (let i = 1; i < lines.length; i++) {
                     if (lines[i].trim() === '') continue;
-                    
+
                     const values = parseCSVLine(lines[i]);
                     if (values.length >= 7) {
-                        santosData.push({
-                            mes: parseInt(values[0]),
-                            dia: parseInt(values[1]),
-                            nombre: values[2],
+                        const mesVal = parseInt(values[0]);
+                        const diaVal = parseInt(values[1]);
+                        const nombreVal = values[2].trim();
+                        const key = `${mesVal}-${diaVal}-${nombreVal}`;
+
+                        // Si ya existe una entrada para esta clave, ignorar duplicado
+                        if (tempMap[key]) continue;
+
+                        tempMap[key] = {
+                            mes: mesVal,
+                            dia: diaVal,
+                            nombre: nombreVal,
                             prioridad: parseInt(values[3]) || 25,
                             descripcion: values[4],
                             imagen: values[5],
                             url_wikipedia: values[6]
-                        });
+                        };
                     }
+                }
+
+                // Volcar el mapa a santosData
+                for (const k in tempMap) {
+                    santosData.push(tempMap[k]);
                 }
                 
                 console.log(`Cargados ${santosData.length} santos desde CSV`);
@@ -595,6 +610,12 @@
 
         // Obtener imagen del santo desde Wikipedia/Wikimedia o carpeta local
         async function getSaintImage(saint) {
+            // Si no hay URL de Wikipedia, no se debe mostrar imagen (regla: sin wiki -> sin imagen)
+            if (!saint.url_wikipedia || saint.url_wikipedia.trim() === '') {
+                console.log('No hay Wikipedia para', saint.nombre, '- no se mostrará imagen aunque exista localmente.');
+                return null;
+            }
+
             // Primero intentar cargar la imagen local
             if (saint.imagen && saint.imagen !== '') {
                 const localImagePath = `images/${saint.imagen}`;
@@ -616,17 +637,17 @@
                 const cleanName = saintName.replace(/^San(to|ta)?\s+/i, '');
                 
                 const searchUrl = `https://es.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(saintName)}&prop=pageimages&format=json&pithumbsize=300&origin=*`;
-                
+
                 const response = await fetch(searchUrl);
                 const data = await response.json();
-                
+
                 const pages = data.query.pages;
                 const pageId = Object.keys(pages)[0];
-                
-                if (pages[pageId].thumbnail) {
+
+                if (pages[pageId] && pages[pageId].thumbnail) {
                     return pages[pageId].thumbnail.source;
                 }
-                
+
                 return null;
             } catch (error) {
                 console.error('Error al obtener imagen:', error);
@@ -747,13 +768,11 @@
             // Obtener imagen
             const imageUrl = await getSaintImage(saint);
             
-            let imageHTML;
+            let imageHTML = '';
             if (imageUrl) {
                 imageHTML = `<img src="${imageUrl}" alt="${saintName}" class="saint-image">`;
-            } else {
-                // Icono de placeholder si no hay imagen
-                imageHTML = `<div class="saint-image placeholder">✝</div>`;
             }
+            // Si no hay imagen, no mostrar nada (ni placeholder)
             
             let description = saint.descripcion || saint.description || saint.historia || '';
             if (description.length > 400) {

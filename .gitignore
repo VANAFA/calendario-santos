@@ -7,9 +7,11 @@ __pycache__/
 .Python
 
 # Backups
+backups/
 *.backup
 *.backup2
 *backup_*
+*.bak
 
 # OS
 .DS_Store
