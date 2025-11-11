@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Santo del Día</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .date-picker-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .search-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+            min-height: 44px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #764ba2;
+            box-shadow: 0 0 5px rgba(118, 75, 162, 0.3);
+        }
+
+        .search-results {
+            position: absolute;
+            background: white;
+            border: 2px solid #667eea;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            width: calc(100% - 30px);
+            z-index: 1001;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .search-result-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
+        }
+
+        .search-result-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-result-name {
+            font-weight: 600;
+            color: #764ba2;
+        }
+
+        .search-result-date {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 3px;
+        }
+
+        .priority-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #ffd700, #ffed4e);
+            color: #333;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-left: 8px;
+            box-shadow: 0 2px 5px rgba(255, 215, 0, 0.3);
+        }
+
+        .picker-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+                .date-picker-container label {
+            color: #333;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 2px;
+        }
+
+        .date-picker-container select {
+            padding: 10px;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            font-size: 1rem;
+            background: white;
+            width: 100%;
+            cursor: pointer;
+            transition: border-color 0.3s;
+            /* Mejor accesibilidad táctil en móviles */
+            min-height: 44px;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23667eea' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 20px;
+            padding-right: 35px;
+        }
+
+        .date-picker-container select:hover {
+            border-color: #764ba2;
+        }
+
+        .date-picker-container select:focus {
+            outline: none;
+            border-color: #764ba2;
+            box-shadow: 0 0 5px rgba(118, 75, 162, 0.3);
+        }
+
+        .date {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+            line-height: 1.3;
+        }
+
+        .saints-container {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            margin-top: 20px;
+        }
+
+        .saint-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }        .saint-image {
+            width: 100%;
+            max-width: 300px;
+            height: auto;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border-radius: 12px;
+            margin: 0 auto 15px;
+            display: block;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .saint-image.placeholder {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 3rem;
+        }
+
+        .saint-name {
+            font-size: 1.6rem;
+            color: #764ba2;
+            margin-bottom: 15px;
+            font-weight: bold;
+            line-height: 1.2;
+        }
+
+        .saint-description {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        .links-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .wiki-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 16px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            min-height: 44px;
+        }
+
+        .wiki-link:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(118, 75, 162, 0.4);
+        }
+
+        .bible-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 44px;
+        }
+
+        .bible-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(118, 75, 162, 0.6);
+        }
+
+        .loading {
+            font-size: 1.2rem;
+            color: #667eea;
+            padding: 20px;
+        }
+
+        .error {
+            color: #e74c3c;
+            font-size: 1rem;
+            padding: 15px;
+        }
+
+        /* Diseño optimizado para DESKTOP (pantallas grandes) */
+        @media (min-width: 768px) {
+            body {
+                padding: 20px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .container {
+                max-width: 900px;
+                padding: 40px;
+                border-radius: 20px;
+            }
+
+            .date-picker-container {
+                grid-template-columns: auto auto;
+                gap: 20px;
+                padding: 20px;
+            }
+
+            .picker-group {
+                flex-direction: row;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .date-picker-container label {
+                font-size: 1rem;
+            }
+
+            .date-picker-container select {
+                width: auto;
+                min-width: 180px;
+            }
+            
+            .date {
+                font-size: 3rem;
+                margin-bottom: 30px;
+            }
+            
+            .saint-name {
+                font-size: 2.2rem;
+            }
+            
+            .saint-description {
+                font-size: 1.15rem;
+                line-height: 1.7;
+            }
+
+            .saint-card {
+                padding: 30px;
+                gap: 20px;
+            }
+
+            .saints-container {
+                gap: 35px;
+            }
+
+            .wiki-link {
+                font-size: 1rem;
+                padding: 12px 24px;
+            }
+        }
+
+        /* Pantallas muy grandes (laptops y monitores) */
+        @media (min-width: 1200px) {
+            .container {
+                max-width: 1100px;
+                padding: 50px;
+            }
+
+            .date {
+                font-size: 3.5rem;
+            }
+
+            .saint-name {
+                font-size: 2.5rem;
+            }
+
+            .saint-description {
+                font-size: 1.2rem;
+            }
+
+            .wiki-link {
+                padding: 14px 28px;
+                font-size: 1.05rem;
+            }
+        }
+
+        /* Modo LANDSCAPE (horizontal) - Date picker fijo en la parte superior */
+        @media (orientation: landscape) {
+            body {
+                padding-top: 170px; /* Espacio para el date picker y search fijo */
+            }
+
+            .date-picker-container {
+                position: fixed;
+                top: 10px;
+                left: 10px;
+                right: 10px;
+                z-index: 1000;
+                margin-bottom: 0;
+                max-width: 600px;
+            }
+
+            .search-container {
+                position: fixed;
+                top: 90px; /* Debajo del date picker */
+                left: 10px;
+                right: 10px;
+                z-index: 1000;
+                margin-bottom: 0;
+                max-width: 600px;
+            }
+
+            .container {
+                margin-top: 20px;
+            }
+        }
+
+        /* Landscape en tablets y desktop */
+        @media (orientation: landscape) and (min-width: 768px) {
+            body {
+                padding-top: 180px;
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+
+            .date-picker-container {
+                top: 20px;
+                left: 20px;
+                max-width: 500px;
+                right: auto; /* Solo ocupa el ancho necesario en la izquierda */
+            }
+
+            .search-container {
+                top: 110px;
+                left: 20px;
+                max-width: 500px;
+                right: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Botón de Cita Bíblica -->
+    <a href="cita-biblica.html" class="bible-button">
+        📖 Cita Bíblica del Día
+    </a>
+
+    <div class="date-picker-container">
+        <div class="picker-group">
+            <label for="monthPicker">Mes:</label>
+            <select id="monthPicker">
+                <option value="0">Enero</option>
+                <option value="1">Febrero</option>
+                <option value="2">Marzo</option>
+                <option value="3">Abril</option>
+                <option value="4">Mayo</option>
+                <option value="5">Junio</option>
+                <option value="6">Julio</option>
+                <option value="7">Agosto</option>
+                <option value="8">Septiembre</option>
+                <option value="9">Octubre</option>
+                <option value="10">Noviembre</option>
+                <option value="11">Diciembre</option>
+            </select>
+        </div>
+        <div class="picker-group">
+            <label for="dayPicker">Día:</label>
+            <select id="dayPicker"></select>
+        </div>
+    </div>
+
+    <div class="search-container">
+        <input type="search" id="searchInput" class="search-input" placeholder="🔍 Buscar santo por nombre..." autocomplete="off">
+        <div id="searchResults" class="search-results" style="display: none;"></div>
+    </div>
+    
+    <div class="container">
+        <div class="date" id="date">Cargando...</div>
+        <div id="saintsContainer">
+            <div class="loading">Buscando santos del día...</div>
+        </div>
+    </div>
+
+    <script>
+        let selectedDate = new Date();
+        let santosData = []; // Almacenar datos del CSV
+
+        // Cargar el CSV al iniciar
+        async function loadSantosCSV() {
+            try {
+                const response = await fetch('data/santos.csv');
+                const csvText = await response.text();
+                
+                // Parsear CSV
+                const lines = csvText.split('\n');
+                const headers = lines[0].split(',');
+                
+                // Leer todas las filas y deduplicar por clave mes-dia-nombre
+                const tempMap = {};
+                for (let i = 1; i < lines.length; i++) {
+                    if (lines[i].trim() === '') continue;
+
+                    const values = parseCSVLine(lines[i]);
+                    if (values.length >= 7) {
+                        const mesVal = parseInt(values[0]);
+                        const diaVal = parseInt(values[1]);
+                        const nombreVal = values[2].trim();
+                        const key = `${mesVal}-${diaVal}-${nombreVal}`;
+
+                        // Si ya existe una entrada para esta clave, ignorar duplicado
+                        if (tempMap[key]) continue;
+
+                        tempMap[key] = {
+                            mes: mesVal,
+                            dia: diaVal,
+                            nombre: nombreVal,
+                            prioridad: parseInt(values[3]) || 25,
+                            descripcion: values[4],
+                            imagen: values[5],
+                            url_wikipedia: values[6]
+                        };
+                    }
+                }
+
+                // Volcar el mapa a santosData
+                for (const k in tempMap) {
+                    santosData.push(tempMap[k]);
+                }
+                
+                console.log(`Cargados ${santosData.length} santos desde CSV`);
+            } catch (error) {
+                console.error('Error cargando CSV:', error);
+            }
+        }
+
+        // Parsear línea CSV (maneja comas dentro de comillas)
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current.trim());
+            
+            return result;
+        }
+
+        // Inicializar selectores
+        function initializeDatePickers() {
+            const monthPicker = document.getElementById('monthPicker');
+            const dayPicker = document.getElementById('dayPicker');
+            
+            monthPicker.value = selectedDate.getMonth();
+            updateDayPicker();
+            dayPicker.value = selectedDate.getDate();
+            
+            monthPicker.addEventListener('change', function() {
+                selectedDate.setMonth(parseInt(this.value));
+                updateDayPicker();
+                displayDate();
+                getSaintOfTheDay();
+            });
+            
+            dayPicker.addEventListener('change', function() {
+                selectedDate.setDate(parseInt(this.value));
+                displayDate();
+                getSaintOfTheDay();
+            });
+        }
+
+        // Actualizar días según el mes
+        function updateDayPicker() {
+            const dayPicker = document.getElementById('dayPicker');
+            const month = selectedDate.getMonth();
+            const year = selectedDate.getFullYear();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            const currentDay = selectedDate.getDate();
+            dayPicker.innerHTML = '';
+            
+            for (let i = 1; i <= daysInMonth; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = i;
+                dayPicker.appendChild(option);
+            }
+            
+            // Mantener el día seleccionado o ajustar si es inválido
+            if (currentDay <= daysInMonth) {
+                dayPicker.value = currentDay;
+            } else {
+                dayPicker.value = daysInMonth;
+                selectedDate.setDate(daysInMonth);
+            }
+        }
+
+        // Mostrar la fecha actual
+        function displayDate() {
+            const options = { 
+                month: 'long', 
+                day: 'numeric' 
+            };
+            const dateString = selectedDate.toLocaleDateString('es-ES', options);
+            document.getElementById('date').textContent = dateString;
+        }
+
+        // Obtener imagen del santo desde Wikipedia/Wikimedia o carpeta local
+        async function getSaintImage(saint) {
+            // Si no hay URL de Wikipedia, no se debe mostrar imagen (regla: sin wiki -> sin imagen)
+            if (!saint.url_wikipedia || saint.url_wikipedia.trim() === '') {
+                console.log('No hay Wikipedia para', saint.nombre, '- no se mostrará imagen aunque exista localmente.');
+                return null;
+            }
+
+            // Primero intentar cargar la imagen local
+            if (saint.imagen && saint.imagen !== '') {
+                const localImagePath = `images/${saint.imagen}`;
+                
+                // Verificar si la imagen local existe
+                try {
+                    const response = await fetch(localImagePath, { method: 'HEAD' });
+                    if (response.ok) {
+                        return localImagePath;
+                    }
+                } catch (e) {
+                    console.log('Imagen local no encontrada:', localImagePath);
+                }
+            }
+            
+            // Si no hay imagen local, intentar desde Wikipedia
+            try {
+                const saintName = saint.nombre || saint.name || '';
+                const cleanName = saintName.replace(/^San(to|ta)?\s+/i, '');
+                
+                const searchUrl = `https://es.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(saintName)}&prop=pageimages&format=json&pithumbsize=300&origin=*`;
+
+                const response = await fetch(searchUrl);
+                const data = await response.json();
+
+                const pages = data.query.pages;
+                const pageId = Object.keys(pages)[0];
+
+                if (pages[pageId] && pages[pageId].thumbnail) {
+                    return pages[pageId].thumbnail.source;
+                }
+
+                return null;
+            } catch (error) {
+                console.error('Error al obtener imagen:', error);
+                return null;
+            }
+        }
+
+        // Obtener el santo del día desde múltiples fuentes
+        async function getSaintOfTheDay() {
+            const month = selectedDate.getMonth() + 1;
+            const day = selectedDate.getDate();
+            
+            // Buscar en los datos del CSV
+            const saintsForDay = santosData.filter(s => s.mes === month && s.dia === day);
+            
+            if (saintsForDay.length > 0) {
+                displayMultipleSaints(saintsForDay);
+            } else {
+                // Si no hay datos en el CSV, mostrar mensaje
+                displayMultipleSaints([{
+                    nombre: 'Santo del Día',
+                    prioridad: 25,
+                    descripcion: 'No hay información disponible para este día. Puedes agregar los datos en el archivo santos.csv',
+                    imagen: '',
+                    url_wikipedia: 'https://es.wikipedia.org'
+                }]);
+            }
+        }
+
+        // Mostrar múltiples santos
+        async function displayMultipleSaints(saints) {
+            const container = document.getElementById('saintsContainer');
+            container.innerHTML = '';
+            
+            console.log('Santos antes de ordenar:', saints.map(s => `${s.nombre} (${s.mes}/${s.dia}) - Prioridad: ${s.prioridad}, Imagen: ${s.imagen ? 'Sí' : 'No'}`));
+            
+            // Ordenar con jerarquía: Festividades > Santos > Beatos, y dentro de cada grupo primero los que tienen imagen
+            // Nota: La etiqueta "Festividad" se maneja manualmente, no se muestra automáticamente
+            saints.sort((a, b) => {
+                // Verificar si tienen imagen
+                const aHasImage = a.imagen && a.imagen.trim() !== '';
+                const bHasImage = b.imagen && b.imagen.trim() !== '';
+                
+                // Determinar el tipo de santo
+                const aType = getSaintType(a.nombre, a.prioridad);
+                const bType = getSaintType(b.nombre, b.prioridad);
+                
+                // Orden de tipos: festividad(3) > santo(2) > beato(1)
+                if (aType !== bType) {
+                    return bType - aType; // Mayor tipo primero
+                }
+                
+                // Dentro del mismo tipo, los que tienen imagen van primero
+                if (aHasImage && !bHasImage) return -1;
+                if (!aHasImage && bHasImage) return 1;
+                
+                // Si ambos tienen o no tienen imagen, ordenar por prioridad
+                return (b.prioridad || 25) - (a.prioridad || 25);
+            });
+            
+            console.log('Santos después de ordenar:', saints.map(s => `${s.nombre} (${s.mes}/${s.dia}) - Tipo: ${getSaintType(s.nombre, s.prioridad)}, Prioridad: ${s.prioridad}, Imagen: ${s.imagen ? 'Sí' : 'No'}`));
+            
+            for (const saint of saints) {
+                await displaySaintCard(saint, container);
+            }
+        }
+
+        // Función auxiliar para determinar el tipo de santo
+        function getSaintType(nombre, prioridad) {
+            const nombreLower = nombre.toLowerCase();
+            
+            // Prioridad 100 = Festividad
+            if (prioridad === 100) return 3;
+            
+            // San, Santa, Santo = tipo 2
+            if (nombreLower.startsWith('san ') || 
+                nombreLower.startsWith('santa ') || 
+                nombreLower.startsWith('santo ')) {
+                return 2;
+            }
+            
+            // Beato, Beata, Venerable = tipo 1
+            if (nombreLower.startsWith('beato ') || 
+                nombreLower.startsWith('beata ') ||
+                nombreLower.startsWith('venerable ')) {
+                return 1;
+            }
+            
+            // Por defecto, tipo 1
+            return 1;
+        }
+
+        // Crear una tarjeta para cada santo
+        async function displaySaintCard(saint, container) {
+            const card = document.createElement('div');
+            card.className = 'saint-card';
+            card.id = `saint-${saint.nombre.replace(/\s+/g, '-').toLowerCase()}`;
+            
+            const saintName = saint.nombre || saint.name || 'Santo del Día';
+            const prioridad = saint.prioridad || 25;
+            const nombreLower = saintName.toLowerCase();
+            
+            // Badge de prioridad para santos importantes
+            let priorityBadge = '';
+            
+            // Solo mostrar badges para santos argentinos
+            // La etiqueta de "Festividad" se maneja manualmente
+            
+            // Santos patronos argentinos (prioridad 90-95)
+            if (prioridad >= 90 && prioridad < 100) {
+                priorityBadge = '<span class="priority-badge">⭐ Santo Patrono de Argentina</span>';
+            }
+            // Santos argentinos (prioridad 85-89)
+            else if (prioridad >= 85 && prioridad < 90) {
+                priorityBadge = '<span class="priority-badge">🇦🇷 Santo Argentino</span>';
+            }
+            
+            // Obtener imagen
+            const imageUrl = await getSaintImage(saint);
+            
+            let imageHTML = '';
+            if (imageUrl) {
+                imageHTML = `<img src="${imageUrl}" alt="${saintName}" class="saint-image">`;
+            }
+            // Si no hay imagen, no mostrar nada (ni placeholder)
+            
+            let description = saint.descripcion || saint.description || saint.historia || '';
+            if (description.length > 400) {
+                description = description.substring(0, 400) + '...';
+            }
+            
+            const wikiUrl = saint.url_wikipedia || saint.url || saint.wiki_url || '';
+            
+            // Solo mostrar botón de Wikipedia si hay URL válida
+            const wikiButton = wikiUrl ? 
+                `<a href="${wikiUrl}" class="wiki-link" target="_blank">📖 Ver en Wikipedia</a>` : 
+                '';
+            
+            card.innerHTML = `
+                ${imageHTML}
+                <div class="saint-name">${saintName}${priorityBadge}</div>
+                <div class="saint-description">${description}</div>
+                <div class="links-container">
+                    ${wikiButton}
+                </div>
+            `;
+            
+            container.appendChild(card);
+        }
+
+        // Inicializar la página
+        async function init() {
+            await loadSantosCSV();
+            initializeDatePickers();
+            initializeSearch();
+            displayDate();
+            getSaintOfTheDay();
+        }
+
+        // Inicializar búsqueda
+        function initializeSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const searchResults = document.getElementById('searchResults');
+            
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                
+                if (query.length < 2) {
+                    searchResults.style.display = 'none';
+                    return;
+                }
+                
+                // Buscar santos que coincidan
+                const matches = santosData.filter(s => 
+                    s.nombre.toLowerCase().includes(query)
+                ).slice(0, 10); // Limitar a 10 resultados
+                
+                if (matches.length > 0) {
+                    displaySearchResults(matches);
+                    searchResults.style.display = 'block';
+                } else {
+                    searchResults.style.display = 'none';
+                }
+            });
+            
+            // Cerrar resultados al hacer clic fuera
+            document.addEventListener('click', function(e) {
+                if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                    searchResults.style.display = 'none';
+                }
+            });
+        }
+
+        // Mostrar resultados de búsqueda
+        function displaySearchResults(matches) {
+            const searchResults = document.getElementById('searchResults');
+            searchResults.innerHTML = '';
+            
+            matches.forEach(saint => {
+                const item = document.createElement('div');
+                item.className = 'search-result-item';
+                
+                const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                                   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+                
+                item.innerHTML = `
+                    <div class="search-result-name">${saint.nombre}</div>
+                    <div class="search-result-date">${saint.dia} de ${monthNames[saint.mes - 1]}</div>
+                `;
+                
+                item.addEventListener('click', function() {
+                    navigateToSaint(saint);
+                    searchResults.style.display = 'none';
+                    document.getElementById('searchInput').value = '';
+                });
+                
+                searchResults.appendChild(item);
+            });
+        }
+
+        // Navegar al día del santo y hacer scroll
+        async function navigateToSaint(saint) {
+            // Actualizar la fecha
+            selectedDate.setMonth(saint.mes - 1);
+            selectedDate.setDate(saint.dia);
+            
+            // Actualizar los selectores
+            document.getElementById('monthPicker').value = saint.mes - 1;
+            updateDayPicker();
+            document.getElementById('dayPicker').value = saint.dia;
+            
+            // Actualizar la vista
+            displayDate();
+            await getSaintOfTheDay();
+            
+            // Esperar un poco más para asegurar que el DOM esté listo
+            setTimeout(() => {
+                scrollToSaint(saint.nombre);
+            }, 500);
+        }
+
+        // Función separada para hacer scroll al santo
+        function scrollToSaint(nombreSanto) {
+            const saintId = `saint-${nombreSanto.replace(/\s+/g, '-').toLowerCase()}`;
+            const saintCard = document.getElementById(saintId);
+            
+            console.log('🔍 Buscando santo:', nombreSanto);
+            console.log('📍 ID generado:', saintId);
+            console.log('✅ Elemento encontrado:', saintCard ? 'Sí' : 'No');
+            
+            if (saintCard) {
+                // Calcular offset para evitar que quede oculto bajo los controles fijos
+                const offset = window.matchMedia('(orientation: landscape)').matches ? 200 : 100;
+                const elementPosition = saintCard.getBoundingClientRect().top + window.pageYOffset;
+                const offsetPosition = elementPosition - offset;
+                
+                console.log('📏 Posición del elemento:', elementPosition);
+                console.log('🎯 Scroll hacia:', offsetPosition);
+                
+                window.scrollTo({
+                    top: offsetPosition,
+                    behavior: 'smooth'
+                });
+                
+                // Destacar el santo brevemente
+                saintCard.style.transition = 'box-shadow 0.3s ease';
+                saintCard.style.boxShadow = '0 0 25px rgba(118, 75, 162, 0.8)';
+                
+                setTimeout(() => {
+                    saintCard.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.1)';
+                }, 2500);
+            } else {
+                console.warn(`❌ No se encontró el santo: ${nombreSanto} (ID: ${saintId})`);
+                // Listar todos los IDs disponibles para debug
+                const allCards = document.querySelectorAll('.saint-card');
+                console.log('📋 Tarjetas disponibles:', Array.from(allCards).map(c => c.id));
+            }
+        }
+        
+        // Ejecutar cuando se cargue la página
+        init();
+    </script>
+</body>
+</html>

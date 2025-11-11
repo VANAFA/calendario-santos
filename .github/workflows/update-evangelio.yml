@@ -25,18 +25,18 @@ jobs:
         
     - name: Actualizar evangelio del día
       run: |
-        python3 scraper_evangelio.py
+        python3 main.py --evangelio
         
     - name: Verificar si hay cambios
       id: verify_diff
       run: |
-        git diff --quiet evangelio_hoy.json || echo "changed=true" >> $GITHUB_OUTPUT
+        git diff --quiet data/evangelio_hoy.json || echo "changed=true" >> $GITHUB_OUTPUT
         
     - name: Commit y Push si hay cambios
       if: steps.verify_diff.outputs.changed == 'true'
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
-        git add evangelio_hoy.json
+        git add data/evangelio_hoy.json
         git commit -m "🔄 Actualizar evangelio del día [$(date +'%Y-%m-%d')]"
         git push

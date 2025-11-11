@@ -86,7 +86,41 @@ python3 main.py --santos-dia 11 11  # 11 de noviembre
 python3 main.py --help
 ```
 
-## 🏷️ Sistema de Etiquetas
+## � GitHub Pages
+
+El sitio está configurado para desplegarse en GitHub Pages automáticamente.
+
+### Estructura para GitHub Pages
+
+Los archivos HTML se encuentran en la **raíz** del proyecto para que GitHub Pages pueda servirlos:
+- `index.html` - Página principal (copia de `web/index.html`)
+- `cita-biblica.html` - Página del evangelio (copia de `web/cita-biblica.html`)
+- `images/` - Symlink a `web/images/`
+
+### Sincronizar Cambios Web
+
+Cuando modifiques archivos en `web/`, sincronízalos a la raíz:
+
+```bash
+./sync-web.sh
+```
+
+O manualmente:
+```bash
+cp web/index.html .
+cp web/cita-biblica.html .
+```
+
+### Configuración de GitHub Pages
+
+1. Ve a **Settings** → **Pages**
+2. Source: **Deploy from a branch**
+3. Branch: **main** → **/ (root)**
+4. Save
+
+Tu sitio estará en: `https://TU_USUARIO.github.io/calendario-santos/`
+
+## �🏷️ Sistema de Etiquetas
 
 Los santos pueden tener etiquetas especiales que afectan su prioridad:
 
