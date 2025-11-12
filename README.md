@@ -118,7 +118,7 @@ cp web/cita-biblica.html .
 3. Branch: **main** → **/ (root)**
 4. Save
 
-Tu sitio estará en: `https://TU_USUARIO.github.io/calendario-santos/`
+Tu sitio estará en: `https://vanafa.github.io/calendario-santos/`
 
 ## �🏷️ Sistema de Etiquetas
 

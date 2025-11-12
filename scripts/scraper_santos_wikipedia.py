@@ -427,9 +427,19 @@ class SantosWikipediaScraper:
                 # Buscar el primer párrafo con contenido sustancial
                 for p in content_div.find_all('p', recursive=False):
                     texto = p.get_text(strip=True)
-                    if len(texto) > 50:  # Filtrar párrafos muy cortos
-                        descripcion = texto[:400]  # Limitar a 400 caracteres
-                        break
+                    
+                    # Filtrar textos no deseados
+                    if len(texto) < 50:  # Muy corto
+                        continue
+                    if 'creativecommons.org' in texto.lower():  # Licencias CC
+                        continue
+                    if 'PDMCreative Commons' in texto:  # Metadata de imágenes
+                        continue
+                    if texto.startswith('http://') or texto.startswith('https://'):  # URLs sueltas
+                        continue
+                    
+                    descripcion = texto[:400]  # Limitar a 400 caracteres
+                    break
             
             # Extraer URL de imagen (buscar en infobox)
             url_imagen = ""
@@ -437,7 +447,33 @@ class SantosWikipediaScraper:
             if infobox:
                 img = infobox.find('img')
                 if img and img.get('src'):
-                    url_imagen = 'https:' + img['src'] if img['src'].startswith('//') else img['src']
+                    src = img['src']
+                    
+                    # Filtrar imágenes no deseadas
+                    imagenes_excluidas = [
+                        'Edit-clear.svg',  # Icono de edición
+                        'Blue_pencil.svg',  # Lápiz azul de edición
+                        'Nuvola_apps_kedit.svg',  # Otro icono de edición
+                        'Question_book',  # Icono de pregunta
+                        'Ambox',  # Iconos de aviso
+                        'Red_question_mark',  # Marca de pregunta roja
+                        'Emblem-question',  # Emblema de pregunta
+                        'Gtk-dialog-question',  # Diálogo de pregunta
+                        'Icon-round-Question_mark',  # Icono de interrogación
+                        'Replacement_character.svg',  # Carácter de reemplazo
+                        'No_image',  # Sin imagen
+                        'Sin_foto.svg',  # Sin foto
+                        'User-avatar',  # Avatar genérico
+                        'Gnome-stock_person',  # Icono de persona
+                    ]
+                    
+                    # Verificar si la imagen es un icono de sistema
+                    es_icono_sistema = any(excl.lower() in src.lower() for excl in imagenes_excluidas)
+                    
+                    if not es_icono_sistema:
+                        url_imagen = 'https:' + src if src.startswith('//') else src
+                    else:
+                        print(f"  ⚠️ Imagen filtrada (icono de sistema): {src.split('/')[-1]}")
             
             return {
                 'descripcion': descripcion,
