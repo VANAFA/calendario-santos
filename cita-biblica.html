@@ -71,6 +71,50 @@
             font-weight: 600;
         }
 
+        .date-selector {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin: 20px 0 30px;
+            flex-wrap: wrap;
+        }
+
+        .date-selector button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .date-selector button:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(118, 75, 162, 0.4);
+        }
+
+        .date-selector input[type="date"],
+        .date-selector input[type="number"] {
+            padding: 10px 15px;
+            border: 2px solid #667eea;
+            border-radius: 25px;
+            font-size: 1rem;
+            text-align: center;
+            min-width: 170px;
+            max-width: 200px;
+        }
+        
+        /* Asegurar que el año completo se muestre en el input date */
+        .date-selector input[type="date"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+        }
+
         .verse-container {
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             padding: 30px;
@@ -194,6 +238,14 @@
 
     <div class="container">
         <h1 class="title">📖 Evangelio del Día</h1>
+        
+        <div class="date-selector">
+            <button onclick="cambiarDia(-1)">⬅️ Anterior</button>
+            <input type="date" id="dateInput" onchange="cargarEvangelioFecha()">
+            <button onclick="irHoy()">📅 Hoy</button>
+            <button onclick="cambiarDia(1)">➡️ Siguiente</button>
+        </div>
+        
         <div class="date" id="date">Cargando...</div>
         
         <div id="loadingMessage" class="loading">
@@ -235,13 +287,175 @@
     </div>
 
     <script>
-        // Cargar el evangelio del día automáticamente
-        async function cargarEvangelio() {
+        let selectedDate = new Date();
+        let evangeliosData = [];
+
+        // Cargar CSV de evangelios
+        async function loadEvangeliosCSV() {
+            try {
+                const response = await fetch('data/evangelios.csv');
+                const csvText = await response.text();
+                
+                const lines = csvText.split('\n');
+                for (let i = 1; i < lines.length; i++) {
+                    if (lines[i].trim() === '') continue;
+                    
+                    const values = parseCSVLine(lines[i]);
+                    if (values.length >= 10) {
+                        evangeliosData.push({
+                            año: parseInt(values[0]),
+                            mes: parseInt(values[1]),
+                            dia: parseInt(values[2]),
+                            titulo: values[3],
+                            primera_lectura_ref: values[4],
+                            primera_lectura_texto: values[5],
+                            salmo_ref: values[6],
+                            salmo_texto: values[7],
+                            evangelio_ref: values[8],
+                            evangelio_texto: values[9]
+                        });
+                    }
+                }
+                
+                console.log(`📖 Cargados ${evangeliosData.length} evangelios desde CSV`);
+            } catch (error) {
+                console.error('Error cargando CSV:', error);
+            }
+        }
+
+        // Parsear línea CSV (maneja comas dentro de comillas)
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current);
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current);
+            
+            return result;
+        }
+
+        // Buscar evangelio por fecha
+        function buscarEvangelio(fecha) {
+            const año = fecha.getFullYear();
+            const mes = fecha.getMonth() + 1;
+            const dia = fecha.getDate();
+            
+            return evangeliosData.find(e => 
+                e.año === año && e.mes === mes && e.dia === dia
+            );
+        }
+
+        // Actualizar el input de fecha
+        function actualizarDateInput() {
+            const año = selectedDate.getFullYear();
+            const mes = String(selectedDate.getMonth() + 1).padStart(2, '0');
+            const dia = String(selectedDate.getDate()).padStart(2, '0');
+            document.getElementById('dateInput').value = `${año}-${mes}-${dia}`;
+        }
+
+        // Cambiar día
+        function cambiarDia(offset) {
+            selectedDate.setDate(selectedDate.getDate() + offset);
+            actualizarDateInput();
+            cargarEvangelioFecha();
+        }
+
+        // Ir a hoy
+        function irHoy() {
+            selectedDate = new Date();
+            actualizarDateInput();
+            cargarEvangelioFecha();
+        }
+
+        // Cargar evangelio de la fecha seleccionada
+        async function cargarEvangelioFecha() {
+            // Actualizar fecha desde el input
+            const fechaInput = document.getElementById('dateInput').value;
+            if (fechaInput) {
+                selectedDate = new Date(fechaInput + 'T12:00:00');
+            }
+            
+            actualizarDateInput();
+            
+            // Mostrar fecha
+            const dateElement = document.getElementById('date');
+            dateElement.textContent = selectedDate.toLocaleDateString('es-ES', { 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+            });
+            
+            // Buscar en CSV primero
+            const evangelio = buscarEvangelio(selectedDate);
+            
+            if (evangelio && evangelio.evangelio_texto) {
+                mostrarEvangelioDesdeCSV(evangelio);
+            } else {
+                // Si no está en CSV y es hoy, intentar JSON/API
+                const hoy = new Date();
+                if (selectedDate.toDateString() === hoy.toDateString()) {
+                    await cargarEvangelioHoy();
+                } else {
+                    mostrarError(`No hay evangelio disponible para el ${selectedDate.toLocaleDateString('es-ES')}`);
+                }
+            }
+        }
+
+        // Mostrar evangelio desde CSV
+        function mostrarEvangelioDesdeCSV(data) {
+            document.getElementById('loadingMessage').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+            
+            // Primera Lectura
+            if (data.primera_lectura_texto) {
+                document.getElementById('lecturaSection').style.display = 'block';
+                document.getElementById('lecturaRef').textContent = data.primera_lectura_ref || 'Primera Lectura';
+                document.getElementById('lecturaText').textContent = data.primera_lectura_texto;
+            } else {
+                document.getElementById('lecturaSection').style.display = 'none';
+            }
+            
+            // Salmo
+            if (data.salmo_texto) {
+                document.getElementById('salmoSection').style.display = 'block';
+                document.getElementById('salmoRef').textContent = data.salmo_ref || 'Salmo';
+                document.getElementById('salmoText').textContent = data.salmo_texto;
+            } else {
+                document.getElementById('salmoSection').style.display = 'none';
+            }
+            
+            // Evangelio
+            if (data.evangelio_texto) {
+                document.getElementById('evangelioSection').style.display = 'block';
+                document.getElementById('evangelioRef').textContent = data.evangelio_ref || 'Evangelio';
+                document.getElementById('evangelioText').textContent = data.evangelio_texto;
+            } else {
+                document.getElementById('evangelioSection').style.display = 'none';
+            }
+            
+            console.log('✅ Evangelio cargado desde CSV');
+        }
+
+        // Cargar el evangelio del día (para fallback)
+        async function cargarEvangelioHoy() {
             // Primero intentar cargar desde archivo local (más rápido y confiable)
             try {
                 console.log('📖 Intentando cargar evangelio desde archivo local...');
                 const timestamp = new Date().getTime();
-                const response = await fetch(`../data/evangelio_hoy.json?t=${timestamp}`);
+                const response = await fetch(`data/evangelio_hoy.json?t=${timestamp}`);
                 
                 if (response.ok) {
                     const data = await response.json();
@@ -469,9 +683,59 @@
             }
         }
 
+        // Mostrar error
+        function mostrarError(mensaje) {
+            document.getElementById('loadingMessage').style.display = 'none';
+            document.getElementById('content').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'block';
+            
+            const esFuturo = selectedDate > new Date();
+            const esHoy = selectedDate.toDateString() === new Date().toDateString();
+            
+            let solucion = '';
+            if (esFuturo) {
+                solucion = `
+                    <p style="margin-top: 15px; font-size: 0.95rem;">
+                        ℹ️ El evangelio para fechas futuras aún no está disponible.<br>
+                        Los evangelios se agregan día a día automáticamente.
+                    </p>
+                `;
+            } else if (esHoy) {
+                solucion = `
+                    <p style="margin-top: 15px; font-size: 0.95rem;">
+                        <strong>💡 Solución:</strong><br>
+                        Para cargar el evangelio de hoy, ejecuta:<br>
+                        <code style="background: #f0f0f0; padding: 5px 10px; border-radius: 5px; display: inline-block; margin-top: 10px;">
+                        python3 main.py --evangelio
+                        </code>
+                    </p>
+                `;
+            } else {
+                solucion = `
+                    <p style="margin-top: 15px; font-size: 0.95rem;">
+                        ℹ️ El evangelio de esta fecha no ha sido cargado aún.<br>
+                        Los evangelios históricos se van agregando gradualmente.
+                    </p>
+                `;
+            }
+            
+            document.getElementById('errorMessage').innerHTML = `
+                <p><strong>${mensaje}</strong></p>
+                ${solucion}
+            `;
+        }
+
         // Inicializar cuando cargue la página
-        window.addEventListener('DOMContentLoaded', () => {
-            cargarEvangelio();
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Cargar CSV primero
+            await loadEvangeliosCSV();
+            
+            // Configurar fecha inicial
+            selectedDate = new Date();
+            actualizarDateInput();
+            
+            // Cargar evangelio
+            await cargarEvangelioFecha();
         });
     </script>
 </body>

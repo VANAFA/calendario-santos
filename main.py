@@ -27,10 +27,12 @@ def mostrar_menu():
     print("="*70)
     print("\nOpciones disponibles:")
     print("  1. Actualizar Evangelio del día")
-    print("  2. Actualizar Santos (todo el año)")
-    print("  3. Actualizar Santos (un día específico)")
-    print("  4. Actualizar todo (evangelio + santos)")
-    print("  5. Salir")
+    print("  2. Actualizar TODOS los evangelios disponibles (masivo)")
+    print("  3. Agregar evangelios al CSV histórico")
+    print("  4. Actualizar Santos (todo el año)")
+    print("  5. Actualizar Santos (un día específico)")
+    print("  6. Actualizar todo (evangelio + santos)")
+    print("  7. Salir")
     print("="*70)
 
 def actualizar_evangelio():
@@ -56,6 +58,51 @@ def actualizar_evangelio():
             
     except Exception as e:
         print(f"\n❌ Error al actualizar evangelio: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def actualizar_evangelios_masivo():
+    """Actualiza TODOS los evangelios disponibles desde Vatican News"""
+    print("\n📖 ACTUALIZANDO TODOS LOS EVANGELIOS DISPONIBLES...")
+    print("-" * 70)
+    
+    try:
+        from scraper_evangelios_masivo import VaticanNewsMassScraper
+        
+        scraper = VaticanNewsMassScraper()
+        scraper.actualizar_todo()
+        
+        print("\n✅ Evangelios masivos actualizados correctamente")
+        return True
+            
+    except Exception as e:
+        print(f"\n❌ Error al actualizar evangelios masivos: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def actualizar_evangelios_historicos():
+    """Obtiene evangelios y los agrega al CSV histórico"""
+    print("\n📖 ACTUALIZANDO EVANGELIOS HISTÓRICOS...")
+    print("-" * 70)
+    
+    try:
+        from scraper_evangelios_historicos import EvangelioHistoricoScraper
+        
+        scraper = EvangelioHistoricoScraper()
+        evangelios = scraper.obtener_evangelio_fecha(datetime.now())
+        
+        if evangelios:
+            scraper.guardar_en_csv(evangelios)
+            print("\n✅ Evangelios históricos actualizados correctamente")
+            return True
+        else:
+            print("\n❌ No se pudieron obtener evangelios")
+            return False
+            
+    except Exception as e:
+        print(f"\n❌ Error al actualizar evangelios históricos: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -160,34 +207,44 @@ def main():
         mostrar_menu()
         
         try:
-            opcion = input("\nSelecciona una opción (1-5): ").strip()
+            opcion = input("\nSelecciona una opción (1-7): ").strip()
             
             if opcion == '1':
                 actualizar_evangelio()
                 input("\nPresiona Enter para continuar...")
             
             elif opcion == '2':
-                actualizar_santos_completo()
+                actualizar_evangelios_masivo()
                 input("\nPresiona Enter para continuar...")
             
             elif opcion == '3':
-                actualizar_santos_dia()
+                actualizar_evangelios_historicos()
                 input("\nPresiona Enter para continuar...")
             
             elif opcion == '4':
-                print("\n🔄 ACTUALIZACIÓN COMPLETA")
-                print("-" * 70)
-                actualizar_evangelio()
-                print("\n")
                 actualizar_santos_completo()
                 input("\nPresiona Enter para continuar...")
             
             elif opcion == '5':
+                actualizar_santos_dia()
+                input("\nPresiona Enter para continuar...")
+            
+            elif opcion == '6':
+                print("\n🔄 ACTUALIZACIÓN COMPLETA")
+                print("-" * 70)
+                actualizar_evangelio()
+                print("\n")
+                actualizar_evangelios_masivo()
+                print("\n")
+                actualizar_santos_completo()
+                input("\nPresiona Enter para continuar...")
+            
+            elif opcion == '7':
                 print("\n👋 ¡Hasta luego!")
                 break
             
             else:
-                print("\n❌ Opción inválida. Por favor selecciona 1-5")
+                print("\n❌ Opción inválida. Por favor selecciona 1-7")
                 input("Presiona Enter para continuar...")
         
         except KeyboardInterrupt:

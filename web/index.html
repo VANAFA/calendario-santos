@@ -519,6 +519,15 @@
                         const mesVal = parseInt(values[0]);
                         const diaVal = parseInt(values[1]);
                         const nombreVal = values[2].trim();
+                        
+                        // Filtrar entradas inválidas: solo "San", "Santa", "Santo", "Beato", "Beata" sin nombre
+                        const nombreSinEspacios = nombreVal.replace(/\s+/g, '').toLowerCase();
+                        if (nombreSinEspacios === 'san' || nombreSinEspacios === 'santa' || 
+                            nombreSinEspacios === 'santo' || nombreSinEspacios === 'beato' || 
+                            nombreSinEspacios === 'beata' || nombreVal.length < 4) {
+                            continue; // Saltar esta entrada
+                        }
+                        
                         const key = `${mesVal}-${diaVal}-${nombreVal}`;
 
                         // Si ya existe una entrada para esta clave, ignorar duplicado

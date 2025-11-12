@@ -17,6 +17,8 @@ warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
 class EvangelioScraper:
     def __init__(self):
+        # Página HTML directa en vez de RSS
+        self.url = "https://www.vaticannews.va/es/evangelio-de-hoy.html"
         self.rss_url = "https://www.vaticannews.va/content/vaticannews/es/evangelio-de-hoy.rss.xml"
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -27,7 +29,123 @@ class EvangelioScraper:
     
     def obtener_evangelio_del_dia(self):
         """
-        Obtiene el evangelio del día desde el RSS de Vatican News
+        Obtiene el evangelio del día - primero intenta desde página HTML, luego RSS
+        """
+        # Intentar primero desde la página HTML (tiene contenido completo)
+        resultado = self._obtener_desde_html()
+        if resultado and resultado.get('exito'):
+            return resultado
+        
+        # Si falla, intentar desde RSS
+        print("⚠️ Página HTML falló, intentando RSS...")
+        return self._obtener_desde_rss()
+    
+    def _obtener_desde_html(self):
+        """Obtiene el evangelio desde la página HTML de Vatican News"""
+        try:
+            print("🔍 Obteniendo evangelio del día desde Vatican News (página HTML)...")
+            response = requests.get(self.url, headers=self.headers, timeout=10)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            resultado = {
+                'fecha': datetime.now().strftime('%d de %B de %Y'),
+                'timestamp': datetime.now().isoformat(),
+                'titulo': 'Evangelio del día',
+                'lectura': None,
+                'salmo': None,
+                'evangelio': None,
+                'exito': False
+            }
+            
+            # Buscar el contenedor principal del evangelio
+            contenido = soup.find('div', class_='section__content')
+            if not contenido:
+                contenido = soup.find('article')
+            if not contenido:
+                contenido = soup.find('div', {'id': 'content'})
+            
+            if not contenido:
+                print("❌ No se encontró el contenedor de contenido")
+                return None
+            
+            # Extraer todos los párrafos
+            parrafos = contenido.find_all(['p', 'div'], recursive=True)
+            
+            seccion_actual = None
+            primera_lectura_ref = ""
+            primera_lectura_texto = []
+            salmo_ref = ""
+            salmo_texto = []
+            evangelio_ref = ""
+            evangelio_texto = []
+            
+            for elemento in parrafos:
+                texto = elemento.get_text(separator=' ', strip=True)
+                if not texto or len(texto) < 5:
+                    continue
+                
+                texto_lower = texto.lower()
+                
+                # Detectar secciones
+                if 'primera lectura' in texto_lower or 'lectura del libro' in texto_lower or 'lectura de la carta' in texto_lower:
+                    seccion_actual = 'lectura'
+                    if len(texto) < 100:  # Es solo el título
+                        primera_lectura_ref = texto
+                    continue
+                elif 'salmo' in texto_lower and len(texto) < 50:
+                    seccion_actual = 'salmo'
+                    salmo_ref = texto
+                    continue
+                elif 'evangelio' in texto_lower or 'santo evangelio según' in texto_lower:
+                    seccion_actual = 'evangelio'
+                    if len(texto) < 100:  # Es solo el título
+                        evangelio_ref = texto
+                    continue
+                
+                # Agregar contenido a la sección actual
+                if seccion_actual == 'lectura' and len(texto) > 30:
+                    primera_lectura_texto.append(texto)
+                elif seccion_actual == 'salmo' and len(texto) > 20:
+                    salmo_texto.append(texto)
+                elif seccion_actual == 'evangelio' and len(texto) > 30:
+                    evangelio_texto.append(texto)
+            
+            # Construir resultado
+            if primera_lectura_texto:
+                resultado['lectura'] = {
+                    'referencia': primera_lectura_ref,
+                    'texto': ' '.join(primera_lectura_texto)
+                }
+            
+            if salmo_texto:
+                resultado['salmo'] = {
+                    'referencia': salmo_ref,
+                    'texto': ' '.join(salmo_texto)
+                }
+            
+            if evangelio_texto:
+                resultado['evangelio'] = {
+                    'referencia': evangelio_ref,
+                    'texto': ' '.join(evangelio_texto)
+                }
+            
+            if resultado['evangelio'] or resultado['lectura']:
+                resultado['exito'] = True
+                print("✅ Evangelio obtenido exitosamente desde página HTML")
+            else:
+                print("⚠️ No se encontraron secciones del evangelio")
+            
+            return resultado
+            
+        except Exception as e:
+            print(f"❌ Error al obtener desde HTML: {e}")
+            return None
+    
+    def _obtener_desde_rss(self):
+        """
+        Obtiene el evangelio del día desde el RSS de Vatican News (fallback)
         """
         try:
             print("🔍 Obteniendo evangelio del día desde Vatican News RSS...")

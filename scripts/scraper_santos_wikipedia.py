@@ -318,7 +318,17 @@ class SantosWikipediaScraper:
             listas = []
             current = santoral_heading.find_next_sibling()
             
+            # Secciones a ignorar (no son santos)
+            secciones_ignorar = ['por países', 'por país', 'celebraciones', 'festividades', 'tradiciones']
+            
             while current and current.name not in ['h2', 'h3']:
+                # Verificar si encontramos un subtítulo que debemos ignorar
+                if current.name in ['h3', 'h4', 'p', 'b', 'strong']:
+                    texto = current.get_text(strip=True).lower()
+                    if any(seccion in texto for seccion in secciones_ignorar):
+                        # Saltar hasta el siguiente encabezado principal
+                        break
+                
                 if current.name in ['ul', 'ol']:
                     listas.append(current)
                 # También buscar listas dentro de divs
@@ -364,6 +374,16 @@ class SantosWikipediaScraper:
                         # Tiene enlace a Wikipedia
                         nombre_santo = enlace_valido.get_text(strip=True)
                         url_wikipedia = 'https://es.wikipedia.org' + enlace_valido['href']
+                        
+                        # Filtrar nombres que no son santos (países, lugares, etc.)
+                        nombres_invalidos = ['españa', 'polonia', 'rusia', 'francia', 'italia', 'alemania', 
+                                            'argentina', 'méxico', 'chile', 'perú', 'colombia', 'bandera']
+                        if any(invalido in nombre_santo.lower() for invalido in nombres_invalidos):
+                            continue
+                        
+                        # Filtrar URLs que no son de santos (archivos, banderas, etc.)
+                        if '/archivo:' in url_wikipedia.lower() or '/file:' in url_wikipedia.lower():
+                            continue
                         
                         # Limpiar el nombre (remover información entre paréntesis al final)
                         nombre_santo = re.sub(r'\s*\([^)]*\)\s*$', '', nombre_santo)
@@ -426,7 +446,7 @@ class SantosWikipediaScraper:
             if content_div:
                 # Buscar el primer párrafo con contenido sustancial
                 for p in content_div.find_all('p', recursive=False):
-                    texto = p.get_text(strip=True)
+                    texto = p.get_text(separator=' ', strip=True)
                     
                     # Filtrar textos no deseados
                     if len(texto) < 50:  # Muy corto
