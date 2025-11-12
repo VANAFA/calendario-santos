@@ -235,81 +235,224 @@
     </div>
 
     <script>
-        // Cargar el evangelio del día desde el JSON
+        // Cargar el evangelio del día automáticamente desde API
         async function cargarEvangelio() {
             try {
-                // Añadir timestamp para evitar cache
-                const timestamp = new Date().getTime();
-                const response = await fetch(`evangelio_hoy.json?t=${timestamp}`);
-                if (!response.ok) {
-                    throw new Error('No se pudo cargar el archivo');
+                console.log('📖 Cargando evangelio del día desde Vatican News RSS...');
+                
+                // Usar el RSS de Vatican News (actualizado automáticamente cada día)
+                const response = await fetch('https://www.vaticannews.va/es/evangelio-de-hoy.rss.xml');
+                const text = await response.text();
+                
+                // Parsear el RSS/XML
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(text, 'text/xml');
+                
+                // Obtener el primer item (evangelio del día)
+                const item = xmlDoc.querySelector('item');
+                
+                if (!item) {
+                    throw new Error('No se encontró contenido en el RSS');
                 }
                 
-                const data = await response.json();
+                const title = item.querySelector('title')?.textContent || '';
+                const description = item.querySelector('description')?.textContent || '';
+                const pubDate = item.querySelector('pubDate')?.textContent || '';
                 
                 // Ocultar mensaje de carga
                 document.getElementById('loadingMessage').style.display = 'none';
                 
-                if (!data.exito) {
-                    document.getElementById('errorMessage').style.display = 'block';
-                    return;
-                }
-                
-                // Verificar si el evangelio es del día actual
-                const hoy = new Date();
-                const fechaHoy = hoy.toLocaleDateString('es-ES', { 
-                    day: 'numeric', 
-                    month: 'long', 
-                    year: 'numeric' 
-                });
-                
-                const fechaEvangelio = data.fecha;
-                const esHoy = fechaEvangelio.includes(hoy.getDate().toString()) && 
-                             fechaEvangelio.includes(hoy.toLocaleDateString('es-ES', { month: 'long' })) &&
-                             fechaEvangelio.includes(hoy.getFullYear().toString());
-                
                 // Mostrar contenido
                 document.getElementById('content').style.display = 'block';
                 
-                // Actualizar fecha
+                // Actualizar fecha desde el pubDate del RSS
                 const dateElement = document.getElementById('date');
-                dateElement.textContent = data.fecha;
+                if (pubDate) {
+                    const fecha = new Date(pubDate);
+                    dateElement.textContent = fecha.toLocaleDateString('es-ES', { 
+                        day: 'numeric', 
+                        month: 'long', 
+                        year: 'numeric' 
+                    });
+                } else {
+                    const hoy = new Date();
+                    dateElement.textContent = hoy.toLocaleDateString('es-ES', { 
+                        day: 'numeric', 
+                        month: 'long', 
+                        year: 'numeric' 
+                    });
+                }
                 dateElement.style.color = '#764ba2';
                 
-                // Cargar Primera Lectura
-                if (data.lectura) {
+                // Limpiar HTML entities del description
+                let cleanDescription = description
+                    .replace(/&nbsp;/g, ' ')
+                    .replace(/&quot;/g, '"')
+                    .replace(/&amp;/g, '&')
+                    .replace(/&#39;/g, "'")
+                    .replace(/&apos;/g, "'")
+                    .replace(/&iacute;/g, 'í')
+                    .replace(/&aacute;/g, 'á')
+                    .replace(/&eacute;/g, 'é')
+                    .replace(/&oacute;/g, 'ó')
+                    .replace(/&uacute;/g, 'ú')
+                    .replace(/&ntilde;/g, 'ñ')
+                    .replace(/&Iacute;/g, 'Í')
+                    .replace(/&Aacute;/g, 'Á')
+                    .replace(/&Eacute;/g, 'É')
+                    .replace(/&Oacute;/g, 'Ó')
+                    .replace(/&Uacute;/g, 'Ú')
+                    .replace(/&Ntilde;/g, 'Ñ')
+                    .replace(/&iquest;/g, '¿')
+                    .replace(/&iexcl;/g, '¡')
+                    .replace(/&laquo;/g, '«')
+                    .replace(/&raquo;/g, '»');
+                
+                // Extraer secciones del HTML
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = cleanDescription;
+                const paragraphs = Array.from(tempDiv.querySelectorAll('p'));
+                
+                let lecturaTitulo = '';
+                let lecturaRef = '';
+                let lecturaTxt = '';
+                let evangelioRef = '';
+                let evangelioTxt = '';
+                let reflexionTxt = '';
+                
+                let currentSection = '';
+                let lastRef = '';
+                
+                for (let p of paragraphs) {
+                    const text = p.textContent.trim();
+                    
+                    if (!text) continue;
+                    
+                    // Detectar sección de lectura
+                    if (text.includes('Lectura del libro') || text.includes('Lectura de la')) {
+                        currentSection = 'lectura-titulo';
+                        lecturaTitulo = text;
+                    }
+                    // Detectar referencia (ej: "Sabiduría 6, 1-11")
+                    else if (text.match(/^[A-ZÁ-Ú][a-zá-ú]+\s*\d+,\s*\d+/)) {
+                        lastRef = text;
+                        if (currentSection === 'lectura-titulo') {
+                            lecturaRef = text;
+                            currentSection = 'lectura';
+                        } else if (currentSection === 'evangelio-titulo') {
+                            evangelioRef = text;
+                            currentSection = 'evangelio';
+                        }
+                    }
+                    // Detectar sección del evangelio
+                    else if (text.includes('santo evangelio según')) {
+                        currentSection = 'evangelio-titulo';
+                    }
+                    // Agregar contenido a la sección actual
+                    else if (text.length > 30) {
+                        if (currentSection === 'lectura') {
+                            lecturaTxt += (lecturaTxt ? ' ' : '') + text;
+                        } else if (currentSection === 'evangelio') {
+                            // Si el texto empieza con mayúscula y es largo, probablemente sea reflexión
+                            if (evangelioTxt && text.length > 200 && !text.startsWith('En aquel tiempo')) {
+                                reflexionTxt += (reflexionTxt ? ' ' : '') + text;
+                            } else {
+                                evangelioTxt += (evangelioTxt ? ' ' : '') + text;
+                            }
+                        }
+                    }
+                }
+                
+                // Mostrar Primera Lectura si existe
+                if (lecturaTxt && lecturaTxt.length > 50) {
                     document.getElementById('lecturaSection').style.display = 'block';
-                    document.getElementById('lecturaRef').textContent = 
-                        `${data.lectura.referencia || ''} ${data.lectura.titulo || ''}`;
-                    // Normalizar espaciado: reemplazar múltiples saltos de línea por espacios
-                    const textoLectura = data.lectura.texto.replace(/\n\n+/g, ' ').replace(/\n/g, ' ');
-                    document.getElementById('lecturaText').textContent = textoLectura;
+                    document.getElementById('lecturaRef').textContent = lecturaRef || lecturaTitulo || 'Primera Lectura';
+                    document.getElementById('lecturaText').textContent = lecturaTxt;
                 }
                 
-                // Cargar Salmo
-                if (data.salmo) {
-                    document.getElementById('salmoSection').style.display = 'block';
-                    document.getElementById('salmoRef').textContent = 
-                        `${data.salmo.referencia || ''} ${data.salmo.titulo || ''}`;
-                    // Normalizar espaciado
-                    const textoSalmo = data.salmo.texto.replace(/\n\n+/g, ' ').replace(/\n/g, ' ');
-                    document.getElementById('salmoText').textContent = textoSalmo;
-                }
-                
-                // Cargar Evangelio
-                if (data.evangelio) {
+                // Mostrar Evangelio
+                if (evangelioTxt && evangelioTxt.length > 50) {
                     document.getElementById('evangelioSection').style.display = 'block';
-                    document.getElementById('evangelioRef').textContent = 
-                        `${data.evangelio.titulo || ''} - ${data.evangelio.referencia || ''}`;
-                    // Normalizar espaciado
-                    const textoEvangelio = data.evangelio.texto.replace(/\n\n+/g, ' ').replace(/\n/g, ' ');
-                    document.getElementById('evangelioText').textContent = textoEvangelio;
+                    document.getElementById('evangelioRef').textContent = evangelioRef || 'Evangelio del día';
+                    document.getElementById('evangelioText').textContent = evangelioTxt;
+                } else {
+                    // Fallback: mostrar todo el contenido como evangelio
+                    document.getElementById('evangelioSection').style.display = 'block';
+                    document.getElementById('evangelioRef').textContent = 'Evangelio del día';
+                    const allText = paragraphs.map(p => p.textContent.trim()).join(' ');
+                    document.getElementById('evangelioText').textContent = allText;
                 }
+                
+                console.log('✅ Evangelio cargado exitosamente desde API');
                 
             } catch (error) {
-                console.error('Error al cargar evangelio:', error);
-                document.getElementById('loadingMessage').style.display = 'none';
-                document.getElementById('errorMessage').style.display = 'block';
+                console.error('❌ Error al cargar evangelio desde API:', error);
+                
+                // Fallback: intentar cargar desde el archivo JSON local si existe
+                try {
+                    console.log('🔄 Intentando cargar desde archivo local...');
+                    const timestamp = new Date().getTime();
+                    const response = await fetch(`evangelio_hoy.json?t=${timestamp}`);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        
+                        document.getElementById('loadingMessage').style.display = 'none';
+                        
+                        if (data.exito) {
+                            document.getElementById('content').style.display = 'block';
+                            
+                            // Actualizar fecha
+                            const dateElement = document.getElementById('date');
+                            dateElement.textContent = data.fecha;
+                            dateElement.style.color = '#764ba2';
+                            
+                            // Cargar Primera Lectura
+                            if (data.lectura) {
+                                document.getElementById('lecturaSection').style.display = 'block';
+                                document.getElementById('lecturaRef').textContent = 
+                                    `${data.lectura.referencia || ''} ${data.lectura.titulo || ''}`;
+                                const textoLectura = data.lectura.texto.replace(/\n\n+/g, ' ').replace(/\n/g, ' ');
+                                document.getElementById('lecturaText').textContent = textoLectura;
+                            }
+                            
+                            // Cargar Salmo
+                            if (data.salmo) {
+                                document.getElementById('salmoSection').style.display = 'block';
+                                document.getElementById('salmoRef').textContent = 
+                                    `${data.salmo.referencia || ''} ${data.salmo.titulo || ''}`;
+                                const textoSalmo = data.salmo.texto.replace(/\n\n+/g, ' ').replace(/\n/g, ' ');
+                                document.getElementById('salmoText').textContent = textoSalmo;
+                            }
+                            
+                            // Cargar Evangelio
+                            if (data.evangelio) {
+                                document.getElementById('evangelioSection').style.display = 'block';
+                                document.getElementById('evangelioRef').textContent = 
+                                    `${data.evangelio.titulo || ''} - ${data.evangelio.referencia || ''}`;
+                                const textoEvangelio = data.evangelio.texto.replace(/\n\n+/g, ' ').replace(/\n/g, ' ');
+                                document.getElementById('evangelioText').textContent = textoEvangelio;
+                            }
+                            
+                            console.log('✅ Evangelio cargado desde archivo local');
+                            return;
+                        }
+                    }
+                    
+                    throw new Error('No hay datos disponibles');
+                    
+                } catch (error2) {
+                    console.error('❌ Error con fallback local:', error2);
+                    document.getElementById('loadingMessage').style.display = 'none';
+                    document.getElementById('errorMessage').style.display = 'block';
+                    document.getElementById('errorMessage').innerHTML = `
+                        <p>No se pudo cargar el evangelio del día.</p>
+                        <p style="margin-top: 15px; font-size: 0.9rem;">
+                            El evangelio se actualiza automáticamente cada día.<br>
+                            Por favor, intenta recargar la página en unos momentos.
+                        </p>
+                    `;
+                }
             }
         }
 
