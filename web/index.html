@@ -185,7 +185,28 @@
             display: flex;
             flex-direction: column;
             gap: 15px;
-        }        .saint-image {
+        }
+
+        .saints-list-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8eaf6 100%);
+            border-left: 4px solid #667eea;
+        }
+
+        .saints-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .saints-list-item {
+            font-size: 1rem;
+            color: #555;
+            padding: 5px 0;
+            line-height: 1.4;
+        }
+
+        .saint-image {
             width: 100%;
             max-width: 300px;
             height: auto;
@@ -481,7 +502,7 @@
         // Cargar el CSV al iniciar
         async function loadSantosCSV() {
             try {
-                const response = await fetch('santos.csv');
+                const response = await fetch('../data/santos.csv');
                 const csvText = await response.text();
                 
                 // Parsear CSV
@@ -684,9 +705,24 @@
             
             console.log('Santos antes de ordenar:', saints.map(s => `${s.nombre} (${s.mes}/${s.dia}) - Prioridad: ${s.prioridad}, Imagen: ${s.imagen ? 'Sí' : 'No'}`));
             
-            // Ordenar con jerarquía: Festividades > Santos > Beatos, y dentro de cada grupo primero los que tienen imagen
-            // Nota: La etiqueta "Festividad" se maneja manualmente, no se muestra automáticamente
-            saints.sort((a, b) => {
+            // Separar santos con Wikipedia de los que no tienen
+            const santosConWikipedia = [];
+            const santosSinWikipedia = [];
+            
+            for (const saint of saints) {
+                const hasWiki = saint.url_wikipedia && saint.url_wikipedia.trim() !== '';
+                const hasDescription = saint.descripcion && saint.descripcion.trim() !== '';
+                
+                // Si tiene Wikipedia o descripción, considerarlo como santo con información
+                if (hasWiki || hasDescription) {
+                    santosConWikipedia.push(saint);
+                } else {
+                    santosSinWikipedia.push(saint);
+                }
+            }
+            
+            // Ordenar santos con Wikipedia con jerarquía: Festividades > Santos > Beatos, y dentro de cada grupo primero los que tienen imagen
+            santosConWikipedia.sort((a, b) => {
                 // Verificar si tienen imagen
                 const aHasImage = a.imagen && a.imagen.trim() !== '';
                 const bHasImage = b.imagen && b.imagen.trim() !== '';
@@ -708,10 +744,22 @@
                 return (b.prioridad || 25) - (a.prioridad || 25);
             });
             
-            console.log('Santos después de ordenar:', saints.map(s => `${s.nombre} (${s.mes}/${s.dia}) - Tipo: ${getSaintType(s.nombre, s.prioridad)}, Prioridad: ${s.prioridad}, Imagen: ${s.imagen ? 'Sí' : 'No'}`));
+            // Ordenar santos sin Wikipedia alfabéticamente
+            santosSinWikipedia.sort((a, b) => {
+                return a.nombre.localeCompare(b.nombre, 'es');
+            });
             
-            for (const saint of saints) {
+            console.log('Santos con Wikipedia:', santosConWikipedia.length);
+            console.log('Santos sin Wikipedia:', santosSinWikipedia.length);
+            
+            // Mostrar tarjetas individuales para santos con Wikipedia
+            for (const saint of santosConWikipedia) {
                 await displaySaintCard(saint, container);
+            }
+            
+            // Mostrar lista agrupada para santos sin Wikipedia
+            if (santosSinWikipedia.length > 0) {
+                displaySaintsList(santosSinWikipedia, container);
             }
         }
 
@@ -738,6 +786,23 @@
             
             // Por defecto, tipo 1
             return 1;
+        }
+
+        // Mostrar lista agrupada de santos sin Wikipedia
+        function displaySaintsList(saints, container) {
+            const card = document.createElement('div');
+            card.className = 'saint-card saints-list-card';
+            
+            let listHTML = '<div class="saint-name">📜 Más santos de este día</div>';
+            listHTML += '<div class="saints-list">';
+            
+            saints.forEach(saint => {
+                listHTML += `<div class="saints-list-item">• ${saint.nombre}</div>`;
+            });
+            
+            listHTML += '</div>';
+            card.innerHTML = listHTML;
+            container.appendChild(card);
         }
 
         // Crear una tarjeta para cada santo
