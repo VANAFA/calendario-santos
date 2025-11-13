@@ -296,11 +296,13 @@
                 const response = await fetch('../data/evangelios.csv');
                 const csvText = await response.text();
                 
-                const lines = csvText.split('\n');
-                for (let i = 1; i < lines.length; i++) {
-                    if (lines[i].trim() === '') continue;
+                // Parsear CSV completo (maneja saltos de línea dentro de comillas)
+                const rows = parseCSV(csvText);
+                
+                // Saltar header (primera fila)
+                for (let i = 1; i < rows.length; i++) {
+                    const values = rows[i];
                     
-                    const values = parseCSVLine(lines[i]);
                     if (values.length >= 10) {
                         evangeliosData.push({
                             año: parseInt(values[0]),
@@ -323,27 +325,61 @@
             }
         }
 
-        // Parsear línea CSV (maneja comas dentro de comillas)
-        function parseCSVLine(line) {
-            const result = [];
-            let current = '';
+        // Parsear CSV completo (maneja saltos de línea y comas dentro de comillas)
+        function parseCSV(text) {
+            const rows = [];
+            let currentRow = [];
+            let currentField = '';
             let inQuotes = false;
             
-            for (let i = 0; i < line.length; i++) {
-                const char = line[i];
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const nextChar = text[i + 1];
                 
                 if (char === '"') {
-                    inQuotes = !inQuotes;
+                    // Comilla doble escapada ""
+                    if (inQuotes && nextChar === '"') {
+                        currentField += '"';
+                        i++; // Saltar la siguiente comilla
+                    } else {
+                        // Toggle estado de comillas
+                        inQuotes = !inQuotes;
+                    }
                 } else if (char === ',' && !inQuotes) {
-                    result.push(current);
-                    current = '';
+                    // Fin de campo
+                    currentRow.push(currentField);
+                    currentField = '';
+                } else if (char === '\n' && !inQuotes) {
+                    // Fin de fila
+                    currentRow.push(currentField);
+                    if (currentRow.length > 1 || currentRow[0] !== '') {
+                        rows.push(currentRow);
+                    }
+                    currentRow = [];
+                    currentField = '';
+                } else if (char === '\r' && nextChar === '\n' && !inQuotes) {
+                    // Windows line ending
+                    currentRow.push(currentField);
+                    if (currentRow.length > 1 || currentRow[0] !== '') {
+                        rows.push(currentRow);
+                    }
+                    currentRow = [];
+                    currentField = '';
+                    i++; // Saltar \n
                 } else {
-                    current += char;
+                    currentField += char;
                 }
             }
-            result.push(current);
             
-            return result;
+            // Agregar última fila si existe
+            if (currentField || currentRow.length > 0) {
+                currentRow.push(currentField);
+                if (currentRow.length > 1 || currentRow[0] !== '') {
+                    rows.push(currentRow);
+                }
+            }
+            
+            return rows;
         }
 
         // Buscar evangelio por fecha
@@ -689,40 +725,76 @@
             document.getElementById('content').style.display = 'none';
             document.getElementById('errorMessage').style.display = 'block';
             
-            const esFuturo = selectedDate > new Date();
-            const esHoy = selectedDate.toDateString() === new Date().toDateString();
+            const ahora = new Date();
+            const esFuturo = selectedDate > ahora;
+            const esHoy = selectedDate.toDateString() === ahora.toDateString();
+            const fechaFormateada = selectedDate.toLocaleDateString('es-ES', { 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+            });
             
+            let titulo = '';
             let solucion = '';
+            
             if (esFuturo) {
+                titulo = '📅 Fecha Futura';
                 solucion = `
-                    <p style="margin-top: 15px; font-size: 0.95rem;">
-                        ℹ️ El evangelio para fechas futuras aún no está disponible.<br>
-                        Los evangelios se agregan día a día automáticamente.
+                    <p style="margin-top: 15px; font-size: 0.95rem; line-height: 1.6;">
+                        ℹ️ El evangelio del <strong>${fechaFormateada}</strong> aún no está disponible.<br><br>
+                        Los evangelios se publican día a día y se agregan automáticamente 
+                        al ejecutar el scraper diario.
                     </p>
                 `;
             } else if (esHoy) {
+                titulo = '📖 Evangelio de Hoy';
                 solucion = `
-                    <p style="margin-top: 15px; font-size: 0.95rem;">
-                        <strong>💡 Solución:</strong><br>
-                        Para cargar el evangelio de hoy, ejecuta:<br>
-                        <code style="background: #f0f0f0; padding: 5px 10px; border-radius: 5px; display: inline-block; margin-top: 10px;">
-                        python3 main.py --evangelio
-                        </code>
+                    <p style="margin-top: 15px; font-size: 0.95rem; line-height: 1.6;">
+                        El evangelio de hoy (<strong>${fechaFormateada}</strong>) aún no ha sido descargado.<br><br>
+                        <strong>💡 Para cargarlo ahora:</strong><br>
+                        <code style="background: #f0f0f0; padding: 8px 15px; border-radius: 5px; 
+                                     display: inline-block; margin-top: 10px; font-family: monospace;">
+                        python3 scripts/scraper_evangelios_masivo.py
+                        </code><br><br>
+                        O desde el menú principal: <code>python3 main.py</code> → Opción 2
                     </p>
                 `;
             } else {
+                titulo = '📜 Evangelio Histórico';
                 solucion = `
-                    <p style="margin-top: 15px; font-size: 0.95rem;">
-                        ℹ️ El evangelio de esta fecha no ha sido cargado aún.<br>
-                        Los evangelios históricos se van agregando gradualmente.
+                    <p style="margin-top: 15px; font-size: 0.95rem; line-height: 1.6;">
+                        El evangelio del <strong>${fechaFormateada}</strong> no ha sido cargado todavía.<br><br>
+                        <strong>📊 Estado actual:</strong> ${getEstadisticasEvangelios()}<br><br>
+                        <strong>💡 Cómo obtenerlo:</strong><br>
+                        • Vatican News solo tiene los últimos ~15 días<br>
+                        • Ejecuta el scraper diariamente para ir acumulando: 
+                          <code style="background: #f0f0f0; padding: 4px 8px; border-radius: 3px; font-family: monospace;">
+                          python3 scripts/scraper_evangelios_masivo.py
+                          </code><br>
+                        • En unos meses tendrás el año completo! 🎉
                     </p>
                 `;
             }
             
             document.getElementById('errorMessage').innerHTML = `
-                <p><strong>${mensaje}</strong></p>
-                ${solucion}
+                <div style="text-align: center;">
+                    <h3 style="color: #764ba2; margin-bottom: 15px;">${titulo}</h3>
+                    <p><strong>${mensaje}</strong></p>
+                    ${solucion}
+                </div>
             `;
+        }
+
+        // Obtener estadísticas de evangelios cargados
+        function getEstadisticasEvangelios() {
+            const total = evangeliosData.length;
+            const conContenido = evangeliosData.filter(ev => 
+                ev.evangelio_texto && ev.evangelio_texto.trim().length > 100
+            ).length;
+            const vacios = total - conContenido;
+            const porcentaje = total > 0 ? Math.round((conContenido / total) * 100) : 0;
+            
+            return `${conContenido}/${total} evangelios cargados (${porcentaje}%)`;
         }
 
         // Inicializar cuando cargue la página
